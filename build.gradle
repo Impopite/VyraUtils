@@ -1,0 +1,86 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+    id 'com.gradleup.shadow' version '9.2.2'
+}
+
+// JitPack coordinate: com.github.Impopite:VyraUtils:<tag>
+group = 'com.github.Impopite'
+version = '1.0.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+
+    withSourcesJar()
+    withJavadocJar()
+}
+
+repositories {
+    mavenCentral()
+
+    maven {
+        url = 'https://repo.papermc.io/repository/maven-public/'
+    }
+
+    maven {
+        url = 'https://jitpack.io'
+    }
+}
+
+dependencies {
+    // Provided by the Paper server: must never be shaded.
+    compileOnly 'io.papermc.paper:paper-api:1.21.8-R0.1-SNAPSHOT'
+    compileOnly 'org.jetbrains:annotations:24.0.0'
+
+    // Everything below is shaded inside VyraUtils.
+    // Consumer plugins DO NOT need to declare or install these.
+    implementation 'dev.jorel:commandapi-paper-shade:12.1.0'
+    implementation 'com.zaxxer:HikariCP:5.0.1'
+    implementation 'com.mysql:mysql-connector-j:8.4.0'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 21
+}
+
+javadoc {
+    options.encoding = 'UTF-8'
+    options.addStringOption('Xdoclint:all,-missing', '-quiet')
+}
+
+// The plain (unshaded) jar is not what gets published.
+tasks.named('jar') {
+    archiveClassifier.set('unshaded')
+}
+
+tasks.named('shadowJar') {
+    archiveClassifier.set('')
+    mergeServiceFiles()
+
+    // Relocate HikariCP to avoid clashes with a copy the server may already provide.
+    // CommandAPI is intentionally NOT relocated: its classes are part of the public API
+    // used by CommandRegistrar/CommandContext.
+    relocate 'com.zaxxer.hikari', 'it.impo.vyrautils.libs.hikari'
+}
+
+tasks.named('sourcesJar') {
+    archiveClassifier.set('sources')
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            // Publish the shaded jar: dependencies are already inside it,
+            // so the generated POM has no transitive dependencies.
+            artifact tasks.shadowJar
+            artifact tasks.sourcesJar
+        }
+    }
+}
+
+tasks.named('publishMavenPublicationToMavenLocal') {
+    dependsOn tasks.named('shadowJar')
+}
