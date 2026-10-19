@@ -1,19 +1,20 @@
 # VyraUtils
 
-Libreria condivisa per i plugin Paper 1.21.8 di Impoo.
+[![Build](https://github.com/Impopite/VyraUtils/actions/workflows/build.yml/badge.svg)](https://github.com/Impopite/VyraUtils/actions/workflows/build.yml)
 
-## Funzionalità
+Shared library for Impoo's Paper 1.21.8 plugins.
 
-- Lang MiniMessage con cache e palette
-- ConfigLoader tipizzato
-- YamlFile
-- Serializzazione ItemStack / Location / Component
-- CommandRegistrar basato su CommandAPI
+## Features
+
+- MiniMessage lang loader with cache and palette
+- Typed `ConfigLoader`
+- `YamlFile` for extra YAML files
+- `ItemStack` / `Component` serialization
+- `CommandService` built on CommandAPI
 - Modrinth update checker
 - HikariCP database pool
-- Utility: Tasks, Cooldowns, TimeParser
 
-## Installazione
+## Installation
 
 ```groovy
 repositories {
@@ -25,14 +26,29 @@ dependencies {
 }
 ```
 
-La libreria è già shaded: CommandAPI, HikariCP e il driver MySQL sono inclusi.
-I plugin consumatori non devono dichiararli né metterli in `plugin.yml`.
+The library is already shaded, so CommandAPI, HikariCP and the MySQL driver are
+bundled inside it. Consumer plugins must not declare them, must not list them in
+`plugin.yml` `libraries`, and must not install the CommandAPI plugin.
 
-## Requisiti
+CommandAPI is initialized by the consumer plugin, not by the library:
+
+```java
+@Override
+public void onLoad() {
+    CommandAPI.onLoad(new CommandAPIPaperConfig(this));
+}
+
+@Override
+public void onEnable() {
+    CommandAPI.onEnable();
+}
+```
+
+## Requirements
 
 - Java 21
 - Paper 1.21.8
 
-## Licenza
+## License
 
 MIT
