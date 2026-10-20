@@ -20,7 +20,6 @@ public final class Components {
 
     private static final MiniMessage MINI_MESSAGE = MiniMessage.miniMessage();
 
-
     /**
      * @return the parsed component, or an empty component for {@code null}/blank input
      */

@@ -19,9 +19,6 @@ import java.util.function.BiFunction;
  */
 public final class Placeholders {
 
-    private Placeholders() {
-    }
-
     /**
      * Placeholders whose value is itself parsed as MiniMessage.
      */
