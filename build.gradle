@@ -31,7 +31,7 @@ repositories {
 dependencies {
     // Provided by the Paper server: must never be shaded.
     compileOnly 'io.papermc.paper:paper-api:1.21.8-R0.1-SNAPSHOT'
-    compileOnly 'org.jetbrains:annotations:24.0.0'
+    compileOnly 'org.jetbrains:annotations:26.1.0'
 
     // Everything below is shaded inside VyraUtils.
     // Consumer plugins DO NOT need to declare or install these.
