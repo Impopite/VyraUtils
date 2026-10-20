@@ -35,7 +35,19 @@ import java.util.logging.Level;
  */
 public final class Schedulers {
 
+    /**
+     * Runs {@code task} on the global thread. When the caller already owns it
+     * (the common case for a {@code CompletableFuture} completed on the main
+     * thread), the task runs immediately instead of being queued: no task
+     * allocation and no extra tick of latency for every message sent back from
+     * an async callback.
+     */
     public static void sync(@NotNull Plugin plugin, @NotNull Runnable task) {
+        if (Bukkit.getServer().isGlobalTickThread()) {
+            task.run();
+            return;
+        }
+
         Bukkit.getGlobalRegionScheduler().execute(plugin, task);
     }
 

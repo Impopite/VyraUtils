@@ -36,6 +36,12 @@ import java.util.concurrent.TimeUnit;
  */
 public final class DatabasePool implements AutoCloseable {
 
+    /**
+     * Idle connections kept open after a burst of queries, capped by
+     * {@link DatabaseSettings#poolSize()}.
+     */
+    private static final int MINIMUM_IDLE = 2;
+
     private final Plugin plugin;
     private final DatabaseSettings settings;
     private final HikariDataSource dataSource;
@@ -177,6 +183,7 @@ public final class DatabasePool implements AutoCloseable {
         config.setUsername(settings.username());
         config.setPassword(settings.password());
         config.setMaximumPoolSize(settings.poolSize());
+        config.setMinimumIdle(Math.min(settings.poolSize(), MINIMUM_IDLE));
         config.setConnectionTimeout(TimeUnit.SECONDS.toMillis(settings.connectionTimeoutSeconds()));
         config.setIdleTimeout(TimeUnit.SECONDS.toMillis(settings.idleTimeoutSeconds()));
         config.setMaxLifetime(TimeUnit.SECONDS.toMillis(settings.maxLifetimeSeconds()));

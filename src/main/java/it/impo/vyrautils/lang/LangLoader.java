@@ -48,12 +48,14 @@ public final class LangLoader {
 
     private final YamlConfiguration config;
     private final TagResolver palette;
+    private final boolean hasPalette;
     private final @Nullable MessageKey prefixKey;
     private final Component prefix;
 
     private final Map<MessageKey, Component> plain;
     private final Map<MessageKey, Component> prefixed;
     private final Set<MessageKey> emptyKeys;
+    private final Set<MessageKey> staticKeys;
     private final List<MessageKey> missingKeys;
 
     private LangLoader(@NotNull YamlConfiguration config,
@@ -62,7 +64,10 @@ public final class LangLoader {
                        @Nullable Plugin plugin) {
         this.config = config;
         this.prefixKey = prefixKey;
-        this.palette = buildPalette(config);
+
+        TagResolver palette = buildPalette(config);
+        this.hasPalette = palette != null;
+        this.palette = palette == null ? TagResolver.empty() : palette;
 
         Set<MessageKey> blankKeys = new LinkedHashSet<>();
         this.prefix = prefixKey == null
@@ -70,15 +75,21 @@ public final class LangLoader {
                 : parseSafely(prefixKey, config.getString(prefixKey.getPath(), ""), plugin, blankKeys);
 
         Map<MessageKey, Component> plainMessages = new LinkedHashMap<>();
+        Set<MessageKey> noTagKeys = new LinkedHashSet<>(keys.size());
 
         for (MessageKey key : keys) {
-            plainMessages.put(key,
-                    parseSafely(key, config.getString(key.getPath(), ""), plugin, blankKeys));
+            String raw = config.getString(key.getPath(), "");
+            plainMessages.put(key, parseSafely(key, raw, plugin, blankKeys));
+
+            if (raw.indexOf('<') < 0) {
+                noTagKeys.add(key);
+            }
         }
 
         this.plain = Collections.unmodifiableMap(plainMessages);
         this.missingKeys = List.copyOf(blankKeys);
         this.emptyKeys = Set.copyOf(blankKeys);
+        this.staticKeys = Set.copyOf(noTagKeys);
 
         if (prefixKey == null) {
             this.prefixed = this.plain;
@@ -177,7 +188,8 @@ public final class LangLoader {
     }
 
     /**
-     * Returns the message with the prefix, using the cache when no placeholder is given.
+     * Returns the message with the prefix, using the cache when no placeholder is given
+     * or when the template does not contain any tag.
      * An empty component is returned, without the prefix, when the key is missing or empty.
      */
     public @NotNull Component get(@NotNull MessageKey key, TagResolver... resolvers) {
@@ -185,7 +197,7 @@ public final class LangLoader {
             return Component.empty();
         }
 
-        if (resolvers.length == 0) {
+        if (resolvers.length == 0 || staticKeys.contains(key)) {
             return prefixed.getOrDefault(key, Component.empty());
         }
 
@@ -205,7 +217,7 @@ public final class LangLoader {
             return Component.empty();
         }
 
-        if (resolvers.length == 0) {
+        if (resolvers.length == 0 || staticKeys.contains(key)) {
             return plain.getOrDefault(key, Component.empty());
         }
 
@@ -333,6 +345,10 @@ public final class LangLoader {
     }
 
     private @NotNull TagResolver combine(@NotNull TagResolver... resolvers) {
+        if (!hasPalette) {
+            return resolvers.length == 0 ? TagResolver.empty() : TagResolver.resolver(resolvers);
+        }
+
         if (resolvers.length == 0) {
             return palette;
         }
@@ -359,10 +375,10 @@ public final class LangLoader {
                 + " message key(s) are missing or empty: " + preview + suffix);
     }
 
-    private static @NotNull TagResolver buildPalette(@NotNull YamlConfiguration config) {
+    private static @Nullable TagResolver buildPalette(@NotNull YamlConfiguration config) {
         ConfigurationSection vars = config.getConfigurationSection("vars");
         if (vars == null) {
-            return TagResolver.empty();
+            return null;
         }
 
         TagResolver.Builder builder = TagResolver.builder();
