@@ -16,14 +16,12 @@ import java.util.logging.Level;
  */
 public final class ItemSerializer {
 
-    private static final byte[] EMPTY = new byte[0];
-
     /**
      * @return the serialized item, or an empty array for {@code null} and air items
      */
     public static byte @NotNull [] toBytes(@Nullable ItemStack item) {
         if (item == null || item.getType().isAir()) {
-            return EMPTY;
+            return new byte[0];
         }
 
         return item.serializeAsBytes();
@@ -58,7 +56,7 @@ public final class ItemSerializer {
             return toBytes(item);
         } catch (RuntimeException exception) {
             plugin.getLogger().log(Level.WARNING, "[Items] Cannot serialize item", exception);
-            return EMPTY;
+            return new byte[0];
         }
     }
 

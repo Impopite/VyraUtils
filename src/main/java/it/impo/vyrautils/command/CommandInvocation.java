@@ -90,19 +90,95 @@ public final class CommandInvocation {
         return arg(name, String.class);
     }
 
+    /**
+     * @return the value, or {@code 0} when missing or of a different type
+     */
     public int integer(@NotNull String name) {
         Object value = args.get(name);
         return value instanceof Number number ? number.intValue() : 0;
     }
 
+    /**
+     * @return the value, or {@code 0} when missing or of a different type
+     */
     public long asLong(@NotNull String name) {
         Object value = args.get(name);
         return value instanceof Number number ? number.longValue() : 0L;
     }
 
+    /**
+     * @return the value, or {@code 0} when missing or of a different type
+     */
     public double asDouble(@NotNull String name) {
         Object value = args.get(name);
         return value instanceof Number number ? number.doubleValue() : 0.0;
+    }
+
+    /**
+     * @return the argument as an integer
+     * @throws IllegalArgumentException when the argument is missing, not a number,
+     *                                  has a fractional part or is outside the
+     *                                  integer range
+     */
+    public int requireInt(@NotNull String name) {
+        long value = requireWholeNumber(name, "integer");
+
+        if (value < Integer.MIN_VALUE || value > Integer.MAX_VALUE) {
+            throw invalidArgument("integer", name);
+        }
+
+        return (int) value;
+    }
+
+    /**
+     * @return the argument as a long
+     * @throws IllegalArgumentException when the argument is missing, not a number
+     *                                  or has a fractional part
+     */
+    public long requireLong(@NotNull String name) {
+        return requireWholeNumber(name, "long");
+    }
+
+    /**
+     * @return the argument as a double
+     * @throws IllegalArgumentException when the argument is missing or not a number
+     */
+    public double requireDouble(@NotNull String name) {
+        Object value = args.get(name);
+
+        if (!(value instanceof Number number)) {
+            throw invalidArgument("double", name);
+        }
+
+        return number.doubleValue();
+    }
+
+    /**
+     * @return the argument as a string
+     * @throws IllegalArgumentException when the argument is missing or not a string
+     */
+    public @NotNull String requireString(@NotNull String name) {
+        Object value = args.get(name);
+
+        if (!(value instanceof String string)) {
+            throw invalidArgument("string", name);
+        }
+
+        return string;
+    }
+
+    /**
+     * @return the argument as a boolean
+     * @throws IllegalArgumentException when the argument is missing or not a boolean
+     */
+    public boolean requireBoolean(@NotNull String name) {
+        Object value = args.get(name);
+
+        if (!(value instanceof Boolean bool)) {
+            throw invalidArgument("boolean", name);
+        }
+
+        return bool;
     }
 
     public boolean flag(@NotNull String name) {
@@ -115,5 +191,27 @@ public final class CommandInvocation {
      */
     public void send(@NotNull MessageKey key, TagResolver... resolvers) {
         service.lang().send(sender, key, resolvers);
+    }
+
+    private long requireWholeNumber(@NotNull String name, @NotNull String type) {
+        Object value = args.get(name);
+
+        if (!(value instanceof Number number)) {
+            throw invalidArgument(type, name);
+        }
+
+        if (number instanceof Double || number instanceof Float) {
+            double decimal = number.doubleValue();
+
+            if (!Double.isFinite(decimal) || decimal != Math.rint(decimal)) {
+                throw invalidArgument(type, name);
+            }
+        }
+
+        return number.longValue();
+    }
+
+    private static @NotNull IllegalArgumentException invalidArgument(@NotNull String type, @NotNull String name) {
+        return new IllegalArgumentException("Missing or invalid " + type + " argument '" + name + "'");
     }
 }

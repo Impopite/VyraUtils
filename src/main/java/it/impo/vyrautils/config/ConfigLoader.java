@@ -8,6 +8,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -19,6 +20,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * plugin keeps working) or a raw dotted path, falls back to the given default and
  * logs a warning the first time a path is missing or has the wrong type. The warning
  * is logged once per path and reset on {@link #reload()}, to keep hot paths quiet.</p>
+ *
+ * <p>{@link #load()}, {@link #reload()} and the setters must be called from the main
+ * thread. After loading, the getters may be called from other threads: the cached
+ * configuration reference is volatile and getters never mutate it.</p>
  *
  * <pre>{@code
  * ConfigLoader config = new ConfigLoader(this).load();
@@ -32,7 +37,7 @@ public final class ConfigLoader {
     private final Plugin plugin;
     private final Set<String> warned = ConcurrentHashMap.newKeySet();
 
-    private FileConfiguration config;
+    private volatile FileConfiguration config;
 
     public ConfigLoader(@NotNull Plugin plugin) {
         this.plugin = plugin;
@@ -192,6 +197,9 @@ public final class ConfigLoader {
      * Generic getter kept for compatibility with hand-written config wrappers.
      * For numbers prefer {@link #getInt(String, int)} and friends, which coerce
      * between {@code Integer}, {@code Long} and {@code Double}.
+     *
+     * <p>When both the stored value and the default are lists, an immutable copy
+     * is returned instead of the live configuration list.</p>
      */
     @SuppressWarnings("unchecked")
     public <T> T get(@NotNull ConfigPath key, @NotNull T def) {
@@ -206,6 +214,9 @@ public final class ConfigLoader {
         Object value = raw().get(path);
         if (value == null) {
             return warn(path, def);
+        }
+        if (value instanceof List<?> list && def instanceof List<?>) {
+            return (T) Collections.unmodifiableList(new ArrayList<>(list));
         }
         if (def.getClass().isInstance(value)) {
             return (T) value;

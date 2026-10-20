@@ -126,10 +126,19 @@ public final class Durations {
     }
 
     /**
-     * @return the number of ticks as a readable duration
+     * @return the number of ticks as a readable duration; negative ticks are read
+     * as zero and an overflow saturates instead of wrapping
      */
     public static @NotNull String formatTicks(long ticks) {
-        return format(Duration.ofMillis(ticks * MILLIS_PER_TICK));
+        long millis;
+
+        try {
+            millis = Math.multiplyExact(Math.max(0L, ticks), MILLIS_PER_TICK);
+        } catch (ArithmeticException exception) {
+            millis = Long.MAX_VALUE;
+        }
+
+        return format(Duration.ofMillis(millis));
     }
 
     private static double millisPerUnit(@NotNull String unit, @NotNull String text) {

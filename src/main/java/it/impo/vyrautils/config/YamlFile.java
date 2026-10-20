@@ -18,6 +18,8 @@ import java.util.logging.Level;
  *
  * <p>Parent folders are created before loading, so nested paths such as
  * {@code quests/daily/first.yml} work out of the box.</p>
+ *
+ * <p>Not thread-safe: use it from the main thread.</p>
  */
 public final class YamlFile {
 
@@ -146,15 +148,17 @@ public final class YamlFile {
     }
 
     /**
-     * Deletes the file from disk.
+     * Deletes the file from disk and clears the in-memory copy.
      *
      * @return {@code true} when the file no longer exists
      */
     public boolean delete() {
-        if (!file.exists()) {
-            return true;
+        if (file.exists() && !file.delete()) {
+            return false;
         }
-        return file.delete();
+
+        this.config = new YamlConfiguration();
+        return true;
     }
 
     /**

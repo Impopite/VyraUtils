@@ -26,6 +26,13 @@ import java.util.concurrent.TimeUnit;
  * before touching the world with the result. A failed task completes the future
  * exceptionally with the original {@link SQLException}: {@link CompletableFuture#join()}
  * throws a {@link java.util.concurrent.CompletionException} whose cause is it.</p>
+ *
+ * <p>The pool must be closed in {@code onDisable}, otherwise Hikari keeps its
+ * threads (and the plugin classloader with them) alive, leaking on every reload.</p>
+ *
+ * <p>{@link #connection()} must not be called on the main thread: use
+ * {@link #query}, {@link #update} or {@link #transaction}, which run on an async
+ * thread.</p>
  */
 public final class DatabasePool implements AutoCloseable {
 
@@ -42,7 +49,8 @@ public final class DatabasePool implements AutoCloseable {
 
     /**
      * Creates the pool and opens its first connection, so wrong credentials fail
-     * at startup instead of at the first query.
+     * at startup instead of at the first query. This may block startup for up to
+     * {@link DatabaseSettings#connectionTimeoutSeconds() connectionTimeoutSeconds}.
      *
      * @throws RuntimeException when Hikari cannot create the pool
      */
@@ -66,13 +74,17 @@ public final class DatabasePool implements AutoCloseable {
 
     /**
      * Borrows a connection from the pool. Always close it with try-with-resources.
+     * Never call it on the main thread: use {@link #query}, {@link #update} or
+     * {@link #transaction}, which run on an async thread.
      */
     public @NotNull Connection connection() throws SQLException {
         return dataSource.getConnection();
     }
 
     /**
-     * Runs a read on an async thread and completes with its result.
+     * Runs a read on an async thread and completes with its result. The function must
+     * materialize the result before returning (for example copy a {@code ResultSet}
+     * into a list): the connection, and with it the result set, is closed afterwards.
      */
     public <T> @NotNull CompletableFuture<T> query(@NotNull SqlFunction<T> function) {
         Objects.requireNonNull(function, "function");
@@ -117,7 +129,11 @@ public final class DatabasePool implements AutoCloseable {
                     connection.commit();
                     return result;
                 } catch (SQLException | RuntimeException exception) {
-                    connection.rollback();
+                    try {
+                        connection.rollback();
+                    } catch (SQLException rollbackFailure) {
+                        exception.addSuppressed(rollbackFailure);
+                    }
                     throw exception;
                 }
             }
@@ -176,6 +192,10 @@ public final class DatabasePool implements AutoCloseable {
         config.addDataSourceProperty("elideSetAutoCommits", "true");
         config.addDataSourceProperty("maintainTimeStats", "false");
         config.addDataSourceProperty("sslMode", settings.ssl() ? "REQUIRED" : "DISABLED");
+
+        if (settings.allowPublicKeyRetrieval()) {
+            config.addDataSourceProperty("allowPublicKeyRetrieval", "true");
+        }
 
         return new HikariDataSource(config);
     }

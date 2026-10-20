@@ -14,6 +14,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -80,22 +81,28 @@ public final class CommandService {
     /**
      * Registers the commands and tracks their names and aliases for
      * {@link #unregisterAll()}, because CommandAPI does not remove aliases
-     * when the main name is unregistered.
+     * when the main name is unregistered. A command that cannot be registered
+     * is logged and skipped, so it does not stop the following ones.
      */
     public void register(@NotNull CommandAPICommand... commands) {
         for (CommandAPICommand command : commands) {
-            command.register();
-            registered.add(command.getName());
-            Collections.addAll(registered, command.getAliases());
+            register(command.getName(), command);
         }
     }
 
     /**
      * Registers a command tracking an explicit name, for the rare cases where the
-     * registered name is not the one returned by the command object.
+     * registered name is not the one returned by the command object. A failed
+     * registration is logged before returning.
      */
     public void register(@NotNull String name, @NotNull CommandAPICommand command) {
-        command.register();
+        try {
+            command.register();
+        } catch (RuntimeException exception) {
+            plugin.getLogger().log(Level.WARNING, "Could not register command '" + name + "'", exception);
+            return;
+        }
+
         registered.add(name);
         Collections.addAll(registered, command.getAliases());
     }
@@ -127,16 +134,12 @@ public final class CommandService {
      * @return {@code true} when the sender has the permission
      */
     public boolean hasPermission(@NotNull CommandSender sender, @NotNull String permission) {
-        if (permission.isBlank() || sender.hasPermission(permission)) {
-            return true;
-        }
-
-        lang().send(sender, messages.noPermission());
-        return false;
+        return hasAnyPermission(sender, permission);
     }
 
     /**
-     * @param permissions the nodes to check, empty to skip the check
+     * @param permissions the nodes to check, blank nodes are skipped and an empty
+     *                    or all blank list skips the check
      * @return {@code true} when the sender has at least one of the permissions
      */
     public boolean hasAnyPermission(@NotNull CommandSender sender, @NotNull String... permissions) {
@@ -144,10 +147,20 @@ public final class CommandService {
             return true;
         }
 
+        boolean checked = false;
         for (String permission : permissions) {
-            if (permission.isBlank() || sender.hasPermission(permission)) {
+            if (permission.isBlank()) {
+                continue;
+            }
+
+            checked = true;
+            if (sender.hasPermission(permission)) {
                 return true;
             }
+        }
+
+        if (!checked) {
+            return true;
         }
 
         lang().send(sender, messages.noPermission());
@@ -172,7 +185,7 @@ public final class CommandService {
     }
 
     public @NotNull LangLoader lang() {
-        return lang.get();
+        return Objects.requireNonNull(lang.get(), "LangLoader supplier returned null");
     }
 
     public @NotNull CommandMessages messages() {

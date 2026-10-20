@@ -26,18 +26,27 @@ import java.util.logging.Level;
  * Checks the Modrinth API for a newer release of the plugin.
  *
  * <pre>{@code
- * ModrinthUpdateChecker updater = new ModrinthUpdateChecker(this, "vyraquest");
- * updater.checkAsync();
+ * private final ModrinthUpdateChecker updater = new ModrinthUpdateChecker(this, "vyraquest");
  *
- * updater.notify(player, getLangLoader(), LangKey.UPDATE_AVAILABLE);
+ * public void scheduleCheck() {
+ *     updater.checkAsync();
+ * }
+ *
+ * @Override
+ * public void onDisable() {
+ *     updater.close();
+ * }
  * }</pre>
  *
  * <p>The version is read from {@code plugin.yml}. Every published version is
  * compared with {@link SemanticVersion}, so a non-ordered API response cannot
  * hide a newer release. Failures are logged and never thrown: a broken update
  * check must not break the plugin.</p>
+ *
+ * <p>Call {@link #close()} in {@code onDisable}: it stops the client without waiting
+ * for in-flight requests.</p>
  */
-public final class ModrinthUpdateChecker {
+public final class ModrinthUpdateChecker implements AutoCloseable {
 
     private static final String API_URL = "https://api.modrinth.com/v2/project/";
     private static final String PAGE_URL = "https://modrinth.com/plugin/";
@@ -76,6 +85,15 @@ public final class ModrinthUpdateChecker {
     }
 
     /**
+     * Stops the HTTP client without waiting for in-flight requests, so it is safe to
+     * call from {@code onDisable}. The checker is not usable afterwards.
+     */
+    @Override
+    public void close() {
+        httpClient.shutdownNow();
+    }
+
+    /**
      * Runs {@link #check()} on an async thread and completes with the update, if any.
      * The future completes on the async thread: use
      * {@link Schedulers#syncFromAsync(Plugin, CompletableFuture, java.util.function.Consumer)}
@@ -99,6 +117,9 @@ public final class ModrinthUpdateChecker {
 
     /**
      * Blocking check. Call it from an async thread, or use {@link #checkAsync()}.
+     *
+     * <p>The main thread warning does not cover the Folia region threads, so do not
+     * call it from a region thread either.</p>
      *
      * @return the update, or empty when the plugin is up to date or the check failed
      */

@@ -14,6 +14,11 @@ import java.util.Locale;
  * ignores build metadata ({@code +build}). Pre-releases sort before the matching
  * release, as in semver.</p>
  *
+ * <p>Components after the third are ignored, so {@code 1.2.3.4} is read as
+ * {@code 1.2.3}. Parsing is deliberately lenient: the leading digits of a component
+ * are kept and the rest is ignored, so {@code 1.2.3foo} is {@code 1.2.3} and
+ * {@code 1.x.3} is {@code 1.0.3}.</p>
+ *
  * <p>{@link #parse(String)} never throws: unparseable input becomes
  * {@link #UNKNOWN} (0.0.0), so a checker can never report a bogus update.</p>
  */

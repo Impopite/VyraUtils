@@ -66,7 +66,7 @@ public final class Schedulers {
 
     public static @NotNull ScheduledTask asyncLater(@NotNull Plugin plugin, @NotNull Runnable task,
                                                     @NotNull Duration delay) {
-        return asyncLater(plugin, task, delay.toMillis(), TimeUnit.MILLISECONDS);
+        return asyncLater(plugin, task, toMillis(delay), TimeUnit.MILLISECONDS);
     }
 
     public static @NotNull ScheduledTask asyncTimer(@NotNull Plugin plugin, @NotNull Runnable task,
@@ -77,7 +77,7 @@ public final class Schedulers {
 
     public static @NotNull ScheduledTask asyncTimer(@NotNull Plugin plugin, @NotNull Runnable task,
                                                     @NotNull Duration initialDelay, @NotNull Duration period) {
-        return asyncTimer(plugin, task, initialDelay.toMillis(), period.toMillis(), TimeUnit.MILLISECONDS);
+        return asyncTimer(plugin, task, toMillis(initialDelay), toMillis(period), TimeUnit.MILLISECONDS);
     }
 
     public static @NotNull ScheduledTask region(@NotNull Plugin plugin, @NotNull Location location,
@@ -138,12 +138,17 @@ public final class Schedulers {
                                          @NotNull Consumer<T> onMain,
                                          @NotNull Consumer<Throwable> onError) {
         future.whenComplete((value, throwable) -> {
-            if (throwable != null) {
-                sync(plugin, () -> onError.accept(throwable));
-                return;
-            }
+            try {
+                if (throwable != null) {
+                    sync(plugin, () -> onError.accept(throwable));
+                    return;
+                }
 
-            sync(plugin, () -> onMain.accept(value));
+                sync(plugin, () -> onMain.accept(value));
+            } catch (RuntimeException exception) {
+                plugin.getLogger().log(Level.WARNING,
+                        "Cannot schedule the async callback on the main thread", exception);
+            }
         });
     }
 
@@ -186,6 +191,14 @@ public final class Schedulers {
     public static void cancelAll(@Nullable ScheduledTask... tasks) {
         for (ScheduledTask task : tasks) {
             cancel(task);
+        }
+    }
+
+    private static long toMillis(@NotNull Duration duration) {
+        try {
+            return Math.max(0L, duration.toMillis());
+        } catch (ArithmeticException exception) {
+            return Long.MAX_VALUE;
         }
     }
 }

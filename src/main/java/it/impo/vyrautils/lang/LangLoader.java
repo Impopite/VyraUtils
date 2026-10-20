@@ -20,20 +20,22 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Loads a MiniMessage language file and caches every message as a {@link Component}.
  *
- * <p>All messages are parsed once, both plain and with the configured prefix, so
- * sending a message never re-parses MiniMessage. Dynamic placeholders are passed
- * as {@link TagResolver}s and are parsed on demand.</p>
+ * <p>Messages without placeholders are served from the cache, so sending them never
+ * re-parses MiniMessage. When {@link TagResolver}s are passed the template is parsed
+ * again at every call: for hot paths such as scoreboards or timers, cache the
+ * resulting {@link Component} on the caller side.</p>
  *
  * <p>The loader is immutable: on reload create a new instance and stop holding
  * a reference to the old one.</p>
@@ -51,6 +53,7 @@ public final class LangLoader {
 
     private final Map<MessageKey, Component> plain;
     private final Map<MessageKey, Component> prefixed;
+    private final Set<MessageKey> emptyKeys;
     private final List<MessageKey> missingKeys;
 
     private LangLoader(@NotNull YamlConfiguration config,
@@ -60,40 +63,87 @@ public final class LangLoader {
         this.config = config;
         this.prefixKey = prefixKey;
         this.palette = buildPalette(config);
+
+        Set<MessageKey> blankKeys = new LinkedHashSet<>();
         this.prefix = prefixKey == null
                 ? Component.empty()
-                : parse(config.getString(prefixKey.getPath(), ""));
+                : parseSafely(prefixKey, config.getString(prefixKey.getPath(), ""), plugin, blankKeys);
 
         Map<MessageKey, Component> plainMessages = new LinkedHashMap<>();
-        List<MessageKey> empty = new ArrayList<>();
 
         for (MessageKey key : keys) {
-            String raw = config.getString(key.getPath(), "");
-            if (raw == null || raw.isEmpty()) {
-                empty.add(key);
-            }
-            plainMessages.put(key, parse(raw));
+            plainMessages.put(key,
+                    parseSafely(key, config.getString(key.getPath(), ""), plugin, blankKeys));
         }
 
         this.plain = Collections.unmodifiableMap(plainMessages);
-        this.missingKeys = List.copyOf(empty);
+        this.missingKeys = List.copyOf(blankKeys);
+        this.emptyKeys = Set.copyOf(blankKeys);
 
-        Map<MessageKey, Component> prefixedMessages = new LinkedHashMap<>();
-        for (Map.Entry<MessageKey, Component> entry : plainMessages.entrySet()) {
-            boolean isPrefix = prefixKey != null && entry.getKey().equals(prefixKey);
-            prefixedMessages.put(entry.getKey(),
-                    isPrefix ? entry.getValue() : prefix.append(entry.getValue()));
+        if (prefixKey == null) {
+            this.prefixed = this.plain;
+        } else {
+            Map<MessageKey, Component> prefixedMessages = new LinkedHashMap<>();
+            for (Map.Entry<MessageKey, Component> entry : plainMessages.entrySet()) {
+                boolean isPrefix = entry.getKey().equals(prefixKey);
+                prefixedMessages.put(entry.getKey(),
+                        isPrefix ? entry.getValue() : prefix.append(entry.getValue()));
+            }
+            this.prefixed = Collections.unmodifiableMap(prefixedMessages);
         }
-        this.prefixed = Collections.unmodifiableMap(prefixedMessages);
 
         if (plugin != null) {
-            reportMissingKeys(plugin, empty);
+            reportMissingKeys(plugin, this.missingKeys);
+        }
+    }
+
+    /**
+     * Loads {@code filePath} from the plugin data folder, falling back to the given
+     * bundled resource when the file does not exist. A missing fallback is logged
+     * and yields a loader with empty messages instead of an exception.
+     *
+     * @param plugin           the owning plugin
+     * @param filePath         path relative to the plugin data folder, e.g. {@code lang/EN_us.yml}
+     * @param keys             every message key the plugin knows about
+     * @param prefixKey        key of the message used as prefix, or {@code null} for none
+     * @param fallbackResource bundled resource used when {@code filePath} is missing
+     */
+    public static @NotNull LangLoader fromFile(@NotNull Plugin plugin,
+                                               @NotNull String filePath,
+                                               @NotNull Collection<? extends MessageKey> keys,
+                                               @Nullable MessageKey prefixKey,
+                                               @NotNull String fallbackResource) {
+        File file = new File(plugin.getDataFolder(), filePath);
+
+        if (file.isFile()) {
+            plugin.getLogger().info("[Lang] Loaded language file: " + filePath);
+            return new LangLoader(YamlConfiguration.loadConfiguration(file), keys, prefixKey, plugin);
+        }
+
+        plugin.getLogger().severe("[Lang] Language file not found: " + filePath
+                + ". Falling back to the bundled " + fallbackResource + ".");
+
+        InputStream stream = plugin.getResource(fallbackResource);
+        if (stream == null) {
+            plugin.getLogger().severe("[Lang] Plugin '" + plugin.getName() + "' does not bundle '"
+                    + fallbackResource + "' and '" + filePath + "' is missing from the data folder:"
+                    + " all messages will be empty");
+            return fromConfiguration(new YamlConfiguration(), keys, prefixKey);
+        }
+
+        try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
+            return new LangLoader(YamlConfiguration.loadConfiguration(reader), keys, prefixKey, plugin);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Cannot read bundled " + fallbackResource, exception);
         }
     }
 
     /**
      * Loads {@code filePath} from the plugin data folder, falling back to the
      * bundled {@value #DEFAULT_FALLBACK} resource when the file does not exist.
+     *
+     * <p>When the fallback is missing too, a loader with empty messages is
+     * returned after logging a {@code severe} message instead of throwing.</p>
      *
      * @param plugin    the owning plugin
      * @param filePath  path relative to the plugin data folder, e.g. {@code lang/EN_us.yml}
@@ -104,27 +154,7 @@ public final class LangLoader {
                                                @NotNull String filePath,
                                                @NotNull Collection<? extends MessageKey> keys,
                                                @Nullable MessageKey prefixKey) {
-        File file = new File(plugin.getDataFolder(), filePath);
-
-        if (file.isFile()) {
-            plugin.getLogger().info("[Lang] Loaded language file: " + filePath);
-            return new LangLoader(YamlConfiguration.loadConfiguration(file), keys, prefixKey, plugin);
-        }
-
-        plugin.getLogger().severe("[Lang] Language file not found: " + filePath
-                + ". Falling back to the bundled " + DEFAULT_FALLBACK + ".");
-
-        InputStream stream = plugin.getResource(DEFAULT_FALLBACK);
-        if (stream == null) {
-            throw new IllegalStateException("Plugin '" + plugin.getName() + "' does not bundle "
-                    + DEFAULT_FALLBACK + " and " + filePath + " is missing from the data folder");
-        }
-
-        try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
-            return new LangLoader(YamlConfiguration.loadConfiguration(reader), keys, prefixKey, plugin);
-        } catch (IOException exception) {
-            throw new IllegalStateException("Cannot read bundled " + DEFAULT_FALLBACK, exception);
-        }
+        return fromFile(plugin, filePath, keys, prefixKey, DEFAULT_FALLBACK);
     }
 
     /**
@@ -148,8 +178,13 @@ public final class LangLoader {
 
     /**
      * Returns the message with the prefix, using the cache when no placeholder is given.
+     * An empty component is returned, without the prefix, when the key is missing or empty.
      */
     public @NotNull Component get(@NotNull MessageKey key, TagResolver... resolvers) {
+        if (isBlank(key)) {
+            return Component.empty();
+        }
+
         if (resolvers.length == 0) {
             return prefixed.getOrDefault(key, Component.empty());
         }
@@ -162,9 +197,14 @@ public final class LangLoader {
     }
 
     /**
-     * Returns the message without the prefix.
+     * Returns the message without the prefix. An empty component is returned when
+     * the key is missing or empty.
      */
     public @NotNull Component component(@NotNull MessageKey key, TagResolver... resolvers) {
+        if (isBlank(key)) {
+            return Component.empty();
+        }
+
         if (resolvers.length == 0) {
             return plain.getOrDefault(key, Component.empty());
         }
@@ -189,6 +229,25 @@ public final class LangLoader {
         return MINI_MESSAGE.deserialize(raw, combine(resolvers));
     }
 
+    private @NotNull Component parseSafely(@NotNull MessageKey key, @Nullable String raw,
+                                           @Nullable Plugin plugin, @NotNull Set<MessageKey> blankKeys) {
+        if (raw == null || raw.isEmpty()) {
+            blankKeys.add(key);
+            return Component.empty();
+        }
+
+        try {
+            return parse(raw);
+        } catch (RuntimeException exception) {
+            blankKeys.add(key);
+            if (plugin != null) {
+                plugin.getLogger().warning("[Lang] Invalid MiniMessage for '"
+                        + key.getPath() + "': " + exception.getMessage());
+            }
+            return Component.empty();
+        }
+    }
+
     /**
      * Returns the raw, unparsed value of a key.
      */
@@ -203,8 +262,12 @@ public final class LangLoader {
         return raw(key).isEmpty();
     }
 
+    private boolean isBlank(@NotNull MessageKey key) {
+        return !plain.containsKey(key) || emptyKeys.contains(key);
+    }
+
     /**
-     * @return every key that was missing or empty at load time
+     * @return every key that was missing, empty or invalid at load time
      */
     public @NotNull List<MessageKey> missingKeys() {
         return missingKeys;
