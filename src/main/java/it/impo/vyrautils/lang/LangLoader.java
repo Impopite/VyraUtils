@@ -138,7 +138,7 @@ public final class LangLoader {
 
     /**
      * Builds a loader from an already parsed configuration, without logging.
-     * Useful for tests and for merging messages loaded from other sources.
+     * Useful to merge messages loaded from other sources.
      */
     public static @NotNull LangLoader fromConfiguration(@NotNull YamlConfiguration config,
                                                         @NotNull Collection<? extends MessageKey> keys,
