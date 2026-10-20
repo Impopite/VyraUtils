@@ -36,7 +36,7 @@ dependencies {
     // Everything below is shaded inside VyraUtils.
     // Consumer plugins DO NOT need to declare or install these.
     implementation 'dev.jorel:commandapi-paper-shade:12.1.0'
-    implementation 'com.zaxxer:HikariCP:5.0.1'
+    implementation 'com.zaxxer:HikariCP:7.1.0'
     implementation 'com.mysql:mysql-connector-j:8.4.0'
 }
 
