@@ -6,13 +6,28 @@ Shared library for Impoo's Paper 1.21.8 plugins.
 
 ## Features
 
-- MiniMessage lang loader with cache and palette
-- Typed `ConfigLoader`
-- `YamlFile` for extra YAML files
-- `ItemStack` / `Component` serialization
-- `CommandService` built on CommandAPI
-- Modrinth update checker
-- HikariCP database pool
+- MiniMessage `LangLoader` with cache, prefix, palette and missing-key report
+- Typed `ConfigLoader` (enums or raw paths) and `YamlFile`
+- `ItemStack` / `Component` serialization plus `Items` edit helpers
+- `CommandService` / `CommandInvocation` built on CommandAPI, with reload-safe language
+- `Schedulers` for Paper and Folia (sync, async, region, entity)
+- `EventRegistrar` for reload-safe listeners
+- `SemanticVersion` and `ModrinthUpdateChecker`
+- HikariCP `DatabasePool`
+
+## Packages
+
+| Package | Classes |
+| --- | --- |
+| `lang` | `LangLoader`, `MessageKey`, `Placeholders` |
+| `config` | `ConfigLoader`, `ConfigPath`, `YamlFile` |
+| `serialize` | `ItemSerializer`, `Components` |
+| `item` | `Items` |
+| `command` | `CommandService`, `CommandInvocation`, `CommandMessages` |
+| `event` | `EventRegistrar` |
+| `scheduling` | `Schedulers` |
+| `update` | `ModrinthUpdateChecker`, `SemanticVersion`, `UpdateChannel`, `UpdateInfo` |
+| `database` | `DatabasePool`, `DatabaseSettings` |
 
 ## Installation
 

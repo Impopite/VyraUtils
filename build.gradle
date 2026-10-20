@@ -61,7 +61,7 @@ tasks.named('shadowJar') {
 
     // Relocate HikariCP to avoid clashes with a copy the server may already provide.
     // CommandAPI is intentionally NOT relocated: its classes are part of the public API
-    // used by CommandRegistrar/CommandContext.
+    // used by CommandService/CommandInvocation.
     relocate 'com.zaxxer.hikari', 'it.impo.vyrautils.libs.hikari'
 }
 
