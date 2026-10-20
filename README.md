@@ -11,6 +11,7 @@ Shared library for Impoo's Paper 1.21.8 plugins.
 - `ItemStack` / `Component` serialization plus `Items` edit helpers
 - `CommandService` / `CommandInvocation` built on CommandAPI, with reload-safe language
 - `Schedulers` for Paper and Folia (sync, async, region, entity)
+- `Durations` to parse `1d2h30m` and format durations
 - `EventService` for reload-safe listeners
 - `SemanticVersion` and `ModrinthUpdateChecker`
 - HikariCP `DatabasePool`
@@ -25,7 +26,7 @@ Shared library for Impoo's Paper 1.21.8 plugins.
 | `item` | `Items` |
 | `command` | `CommandService`, `CommandInvocation`, `CommandMessages` |
 | `event` | `EventService` |
-| `scheduling` | `Schedulers` |
+| `scheduling` | `Schedulers`, `Durations` |
 | `update` | `ModrinthUpdateChecker`, `SemanticVersion`, `UpdateChannel`, `UpdateInfo` |
 | `database` | `DatabasePool`, `DatabaseSettings` |
 
