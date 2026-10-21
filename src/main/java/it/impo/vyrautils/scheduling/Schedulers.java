@@ -104,6 +104,15 @@ public final class Schedulers {
     }
 
     /**
+     * Repeats a task on the region owning the location.
+     */
+    public static @NotNull ScheduledTask regionTimer(@NotNull Plugin plugin, @NotNull Location location,
+                                                     @NotNull Runnable task, long delayTicks, long periodTicks) {
+        return Bukkit.getRegionScheduler().runAtFixedRate(plugin, location, scheduled -> task.run(),
+                Math.max(1L, delayTicks), Math.max(1L, periodTicks));
+    }
+
+    /**
      * @return the task, or {@code null} when the entity is already retired
      */
     public static @Nullable ScheduledTask entity(@NotNull Plugin plugin, @NotNull Entity entity,
@@ -118,6 +127,17 @@ public final class Schedulers {
                                                       @NotNull Runnable task, long delayTicks) {
         return entity.getScheduler().runDelayed(plugin, scheduled -> task.run(), null,
                 Math.max(1L, delayTicks));
+    }
+
+    /**
+     * Repeats a task on the thread owning the entity.
+     *
+     * @return the task, or {@code null} when the entity is already retired
+     */
+    public static @Nullable ScheduledTask entityTimer(@NotNull Plugin plugin, @NotNull Entity entity,
+                                                      @NotNull Runnable task, long delayTicks, long periodTicks) {
+        return entity.getScheduler().runAtFixedRate(plugin, scheduled -> task.run(), null,
+                Math.max(1L, delayTicks), Math.max(1L, periodTicks));
     }
 
     /**

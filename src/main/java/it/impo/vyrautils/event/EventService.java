@@ -45,7 +45,7 @@ public final class EventService {
      * Registering the same instance twice is ignored.
      */
     public <T extends Listener> @NotNull T register(@NotNull T listener) {
-        if (listeners.contains(listener)) {
+        if (containsIdentity(listener)) {
             return listener;
         }
 
@@ -65,7 +65,7 @@ public final class EventService {
      */
     public void unregister(@NotNull Listener listener) {
         HandlerList.unregisterAll(listener);
-        listeners.remove(listener);
+        listeners.removeIf(tracked -> tracked == listener);
     }
 
     /**
@@ -87,5 +87,17 @@ public final class EventService {
 
     public int count() {
         return listeners.size();
+    }
+
+    /**
+     * Compares the listeners by identity: two different instances of the same
+     * listener class are two different registrations.
+     */
+    private boolean containsIdentity(@NotNull Listener listener) {
+        for (Listener tracked : listeners) {
+            if (tracked == listener) return true;
+        }
+
+        return false;
     }
 }

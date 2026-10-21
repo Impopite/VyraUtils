@@ -1,12 +1,15 @@
 package it.impo.vyrautils.config;
 
+import it.impo.vyrautils.scheduling.Durations;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -127,6 +130,62 @@ public final class ConfigLoader {
     public boolean getBoolean(@NotNull String path, boolean def) {
         Object value = raw().get(path);
         return value instanceof Boolean bool ? bool : warn(path, def);
+    }
+
+    /**
+     * Reads an optional value, without logging anything when it is missing.
+     * Use it for the keys that are allowed to be absent.
+     *
+     * @return the value, or {@code null} when the path is missing
+     */
+    public @Nullable String getOptionalString(@NotNull ConfigPath key) {
+        return getOptionalString(key.getPath());
+    }
+
+    /**
+     * @see #getOptionalString(ConfigPath)
+     */
+    public @Nullable String getOptionalString(@NotNull String path) {
+        return raw().getString(path);
+    }
+
+    /**
+     * @return the section, or {@code null} when the path is missing or is not a section
+     */
+    public @Nullable ConfigurationSection getSection(@NotNull ConfigPath key) {
+        return getSection(key.getPath());
+    }
+
+    /**
+     * @see #getSection(ConfigPath)
+     */
+    public @Nullable ConfigurationSection getSection(@NotNull String path) {
+        return raw().getConfigurationSection(path);
+    }
+
+    /**
+     * Reads a duration written as {@code 1d2h30m}, see {@link Durations#parse(String)}.
+     *
+     * @return the parsed duration, or {@code def} when the path is missing or invalid
+     */
+    public @NotNull Duration getDuration(@NotNull ConfigPath key, @NotNull Duration def) {
+        return getDuration(key.getPath(), def);
+    }
+
+    /**
+     * @see #getDuration(ConfigPath, Duration)
+     */
+    public @NotNull Duration getDuration(@NotNull String path, @NotNull Duration def) {
+        String value = raw().getString(path);
+        if (value == null) {
+            return warn(path, def);
+        }
+
+        try {
+            return Durations.parse(value);
+        } catch (IllegalArgumentException exception) {
+            return warn(path, def);
+        }
     }
 
     /**

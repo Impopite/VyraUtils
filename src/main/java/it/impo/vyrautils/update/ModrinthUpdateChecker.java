@@ -118,14 +118,18 @@ public final class ModrinthUpdateChecker implements AutoCloseable {
     /**
      * Blocking check. Call it from an async thread, or use {@link #checkAsync()}.
      *
-     * <p>The main thread warning does not cover the Folia region threads, so do not
+     * <p>The request blocks the calling thread for up to ten seconds, so the check
+     * is refused on the main thread: a forgotten {@code check()} would freeze the
+     * whole server. The guard does not cover the Folia region threads, so do not
      * call it from a region thread either.</p>
      *
      * @return the update, or empty when the plugin is up to date or the check failed
+     * @throws IllegalStateException when called on the main thread
      */
     public @NotNull Optional<UpdateInfo> check() {
         if (Schedulers.isGlobalThread()) {
-            plugin.getLogger().warning("[Update] check() called on the main thread, prefer checkAsync()");
+            throw new IllegalStateException("check() blocks the calling thread for up to 10 seconds: "
+                    + "call it from an async thread or use checkAsync()");
         }
 
         try {

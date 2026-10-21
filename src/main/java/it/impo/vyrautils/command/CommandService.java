@@ -123,6 +123,24 @@ public final class CommandService {
     }
 
     /**
+     * Unregisters a single command registered through this service.
+     *
+     * @return {@code true} when the command was tracked and has been unregistered
+     */
+    public boolean unregister(@NotNull String name) {
+        if (!registered.remove(name)) return false;
+
+        try {
+            CommandAPI.unregister(name);
+        } catch (RuntimeException exception) {
+            plugin.getLogger().log(Level.WARNING, "Could not unregister command '" + name + "'", exception);
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * @return an immutable, ordered view of the registered command names
      */
     public @NotNull Set<String> registeredNames() {

@@ -121,8 +121,14 @@ public final class LangLoader {
         File file = new File(plugin.getDataFolder(), filePath);
 
         if (file.isFile()) {
+            YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+            if (file.length() > 0L && config.getKeys(false).isEmpty()) {
+                plugin.getLogger().severe("[Lang] Language file '" + filePath
+                        + "' is empty or invalid, every message will be empty");
+            }
+
             plugin.getLogger().info("[Lang] Loaded language file: " + filePath);
-            return new LangLoader(YamlConfiguration.loadConfiguration(file), keys, prefixKey, plugin);
+            return new LangLoader(config, keys, prefixKey, plugin);
         }
 
         plugin.getLogger().severe("[Lang] Language file not found: " + filePath
@@ -195,7 +201,7 @@ public final class LangLoader {
             return prefixed.getOrDefault(key, Component.empty());
         }
 
-        if (prefixKey != null && key.equals(prefixKey)) {
+        if (key.equals(prefixKey)) {
             return component(key, resolvers);
         }
 

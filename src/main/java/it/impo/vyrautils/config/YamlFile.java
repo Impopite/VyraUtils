@@ -19,19 +19,31 @@ import java.util.logging.Level;
  * <p>Parent folders are created before loading, so nested paths such as
  * {@code quests/daily/first.yml} work out of the box.</p>
  *
+ * <p>A file that cannot be parsed is never overwritten: the error is logged, the
+ * in-memory copy stays empty and {@link #save()} refuses to write, so a broken
+ * file is not silently replaced by the defaults.</p>
+ *
  * <p>Not thread-safe: use it from the main thread.</p>
  */
 public final class YamlFile {
 
     private final Plugin plugin;
     private final File file;
+    private final String path;
 
     private FileConfiguration config;
+    private boolean broken;
 
-    private YamlFile(@NotNull Plugin plugin, @NotNull File file, @NotNull FileConfiguration config) {
+    private YamlFile(@NotNull Plugin plugin,
+                     @NotNull File file,
+                     @NotNull String path,
+                     @NotNull FileConfiguration config,
+                     boolean broken) {
         this.plugin = plugin;
         this.file = file;
+        this.path = path;
         this.config = config;
+        this.broken = broken;
     }
 
     /**
@@ -40,7 +52,8 @@ public final class YamlFile {
     public static @NotNull YamlFile load(@NotNull Plugin plugin, @NotNull String path) {
         File file = new File(plugin.getDataFolder(), path);
         createParentFolders(file);
-        return new YamlFile(plugin, file, YamlConfiguration.loadConfiguration(file));
+        Parsed parsed = parse(plugin, file, path);
+        return new YamlFile(plugin, file, path, parsed.config(), parsed.broken());
     }
 
     /**
@@ -80,18 +93,25 @@ public final class YamlFile {
      */
     public void reload() {
         createParentFolders(file);
-        this.config = YamlConfiguration.loadConfiguration(file);
+        Parsed parsed = parse(plugin, file, path);
+        this.config = parsed.config();
+        this.broken = parsed.broken();
     }
 
     /**
-     * @throws IllegalStateException when the file cannot be written
+     * @throws IllegalStateException when the file cannot be written, or when it
+     *                               could not be parsed and would be overwritten
      */
     public void save() {
+        if (broken) {
+            throw new IllegalStateException("Cannot save " + path + ": the file could not be parsed");
+        }
+
         createParentFolders(file);
         try {
             config.save(file);
         } catch (IOException exception) {
-            throw new IllegalStateException("Cannot save " + file.getName(), exception);
+            throw new IllegalStateException("Cannot save " + path, exception);
         }
     }
 
@@ -102,12 +122,17 @@ public final class YamlFile {
      * @return {@code true} when the file was written
      */
     public boolean saveQuietly() {
+        if (broken) {
+            plugin.getLogger().severe("[Yaml] Cannot save " + path + ": the file could not be parsed");
+            return false;
+        }
+
         createParentFolders(file);
         try {
             config.save(file);
             return true;
         } catch (IOException exception) {
-            plugin.getLogger().log(Level.WARNING, "[Yaml] Cannot save " + file.getName(), exception);
+            plugin.getLogger().log(Level.WARNING, "[Yaml] Cannot save " + path, exception);
             return false;
         }
     }
@@ -158,7 +183,16 @@ public final class YamlFile {
         }
 
         this.config = new YamlConfiguration();
+        this.broken = false;
         return true;
+    }
+
+    /**
+     * @return {@code true} when the file exists but could not be parsed: the file
+     * on disk is kept and {@link #save()} refuses to overwrite it
+     */
+    public boolean isBroken() {
+        return broken;
     }
 
     /**
@@ -185,10 +219,38 @@ public final class YamlFile {
         }
     }
 
+    /**
+     * Parses the file, keeping it untouched when it is malformed.
+     */
+    private static @NotNull Parsed parse(@NotNull Plugin plugin, @NotNull File file, @NotNull String path) {
+        if (!file.isFile()) {
+            return new Parsed(new YamlConfiguration(), false);
+        }
+
+        YamlConfiguration config = new YamlConfiguration();
+        try {
+            config.load(file);
+            return new Parsed(config, false);
+        } catch (IOException | InvalidConfigurationException exception) {
+            plugin.getLogger().log(Level.SEVERE, "[Yaml] Cannot parse '" + path
+                    + "': the file on disk is kept and will not be overwritten", exception);
+            return new Parsed(new YamlConfiguration(), true);
+        }
+    }
+
     private static void createParentFolders(@NotNull File file) {
         File parent = file.getParentFile();
         if (parent != null && !parent.isDirectory() && !parent.mkdirs()) {
             throw new IllegalStateException("Cannot create folder " + parent.getAbsolutePath());
         }
+    }
+
+    /**
+     * The outcome of a parse: the configuration and whether the file was broken.
+     *
+     * @param config the parsed configuration, empty when the file is broken
+     * @param broken whether the file exists but could not be parsed
+     */
+    private record Parsed(@NotNull FileConfiguration config, boolean broken) {
     }
 }
