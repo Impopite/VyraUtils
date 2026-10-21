@@ -28,6 +28,7 @@ import java.util.regex.Pattern;
 public final class Durations {
 
     private static final Pattern COMPONENT = Pattern.compile("(\\d+(?:\\.\\d+)?)([dhms]?)");
+    private static final Pattern WHITESPACE = Pattern.compile("\\s+");
     private static final long SECONDS_PER_DAY = 86_400L;
     private static final long SECONDS_PER_HOUR = 3_600L;
     private static final long SECONDS_PER_MINUTE = 60L;
@@ -38,7 +39,7 @@ public final class Durations {
      * @throws IllegalArgumentException when the text is not a duration
      */
     public static @NotNull Duration parse(@NotNull String text) {
-        String input = text.trim().toLowerCase(Locale.ROOT).replaceAll("\\s+", "");
+        String input = WHITESPACE.matcher(text.trim()).replaceAll("").toLowerCase(Locale.ROOT);
         if (input.isEmpty()) {
             throw new IllegalArgumentException("Empty duration");
         }

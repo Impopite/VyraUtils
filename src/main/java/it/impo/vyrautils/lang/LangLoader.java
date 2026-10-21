@@ -47,16 +47,14 @@ public final class LangLoader {
     private static final int MISSING_KEYS_LOG_LIMIT = 10;
 
     private final YamlConfiguration config;
-    private final TagResolver palette;
-    private final boolean hasPalette;
+    private final @Nullable TagResolver palette;
     private final @Nullable MessageKey prefixKey;
     private final Component prefix;
 
     private final Map<MessageKey, Component> plain;
     private final Map<MessageKey, Component> prefixed;
-    private final Set<MessageKey> emptyKeys;
+    private final Set<MessageKey> missingKeys;
     private final Set<MessageKey> staticKeys;
-    private final List<MessageKey> missingKeys;
 
     private LangLoader(@NotNull YamlConfiguration config,
                        @NotNull Collection<? extends MessageKey> keys,
@@ -64,10 +62,7 @@ public final class LangLoader {
                        @Nullable Plugin plugin) {
         this.config = config;
         this.prefixKey = prefixKey;
-
-        TagResolver palette = buildPalette(config);
-        this.hasPalette = palette != null;
-        this.palette = palette == null ? TagResolver.empty() : palette;
+        this.palette = buildPalette(config);
 
         Set<MessageKey> blankKeys = new LinkedHashSet<>();
         this.prefix = prefixKey == null
@@ -87,8 +82,7 @@ public final class LangLoader {
         }
 
         this.plain = Collections.unmodifiableMap(plainMessages);
-        this.missingKeys = List.copyOf(blankKeys);
-        this.emptyKeys = Set.copyOf(blankKeys);
+        this.missingKeys = Collections.unmodifiableSet(blankKeys);
         this.staticKeys = Set.copyOf(noTagKeys);
 
         if (prefixKey == null) {
@@ -275,14 +269,14 @@ public final class LangLoader {
     }
 
     private boolean isBlank(@NotNull MessageKey key) {
-        return !plain.containsKey(key) || emptyKeys.contains(key);
+        return !plain.containsKey(key) || missingKeys.contains(key);
     }
 
     /**
      * @return every key that was missing, empty or invalid at load time
      */
     public @NotNull List<MessageKey> missingKeys() {
-        return missingKeys;
+        return List.copyOf(missingKeys);
     }
 
     public void send(@NotNull CommandSender sender, @NotNull MessageKey key, TagResolver... resolvers) {
@@ -345,21 +339,22 @@ public final class LangLoader {
     }
 
     private @NotNull TagResolver combine(@NotNull TagResolver... resolvers) {
-        if (!hasPalette) {
+        TagResolver built = palette;
+        if (built == null) {
             return resolvers.length == 0 ? TagResolver.empty() : TagResolver.resolver(resolvers);
         }
 
         if (resolvers.length == 0) {
-            return palette;
+            return built;
         }
 
         TagResolver[] all = new TagResolver[resolvers.length + 1];
-        all[0] = palette;
+        all[0] = built;
         System.arraycopy(resolvers, 0, all, 1, resolvers.length);
         return TagResolver.resolver(all);
     }
 
-    private static void reportMissingKeys(@NotNull Plugin plugin, @NotNull List<MessageKey> missing) {
+    private static void reportMissingKeys(@NotNull Plugin plugin, @NotNull Collection<MessageKey> missing) {
         if (missing.isEmpty()) {
             return;
         }

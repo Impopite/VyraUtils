@@ -8,6 +8,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -18,7 +19,9 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>HikariCP is relocated inside the shaded jar, so it never appears in this
  * public API: use {@link #connection()} and the async helpers instead of asking
- * for the data source.</p>
+ * for the data source. The MySQL driver is relocated as well and is resolved by
+ * name at pool creation, so the pool never depends on the global
+ * {@link java.sql.DriverManager} registration.</p>
  *
  * <p>Async methods run with {@link Schedulers#async(Plugin, Runnable)} and
  * complete their future on that async thread. Use
@@ -41,6 +44,15 @@ public final class DatabasePool implements AutoCloseable {
      * {@link DatabaseSettings#poolSize()}.
      */
     private static final int MINIMUM_IDLE = 2;
+
+    /**
+     * Candidate names of the MySQL driver, in priority order.
+     *
+     * <p>The first is the original class name and the second the relocated one: in
+     * the shaded jar both are rewritten to the relocated name, while in an unshaded
+     * build the first one matches.</p>
+     */
+    private static final List<String> DRIVER_CLASS_NAMES = List.of("com.mysql.cj.jdbc.Driver", "it.impo.vyrautils.libs.mysql.jdbc.Driver");
 
     private final Plugin plugin;
     private final DatabaseSettings settings;
@@ -67,7 +79,7 @@ public final class DatabasePool implements AutoCloseable {
 
         this.plugin = plugin;
         this.settings = settings;
-        this.dataSource = create(poolName, settings);
+        this.dataSource = create(plugin, poolName, settings);
     }
 
     public @NotNull DatabaseSettings settings() {
@@ -175,13 +187,15 @@ public final class DatabasePool implements AutoCloseable {
         return future;
     }
 
-    private static @NotNull HikariDataSource create(@NotNull String poolName, @NotNull DatabaseSettings settings) {
+    private static @NotNull HikariDataSource create(@NotNull Plugin plugin, @NotNull String poolName, @NotNull DatabaseSettings settings) {
         HikariConfig config = new HikariConfig();
 
         config.setPoolName(poolName);
         config.setJdbcUrl(settings.jdbcUrl());
         config.setUsername(settings.username());
         config.setPassword(settings.password());
+
+        config.setDriverClassName(driverClassName(plugin));
         config.setMaximumPoolSize(settings.poolSize());
         config.setMinimumIdle(Math.min(settings.poolSize(), MINIMUM_IDLE));
         config.setConnectionTimeout(TimeUnit.SECONDS.toMillis(settings.connectionTimeoutSeconds()));
@@ -205,6 +219,25 @@ public final class DatabasePool implements AutoCloseable {
         }
 
         return new HikariDataSource(config);
+    }
+
+    /**
+     * Finds the MySQL driver on the classpath of the plugin.
+     *
+     * @throws IllegalStateException when the driver is missing
+     */
+    private static @NotNull String driverClassName(@NotNull Plugin plugin) {
+        ClassLoader loader = plugin.getClass().getClassLoader();
+
+        for (String candidate : DRIVER_CLASS_NAMES) {
+            try {
+                Class.forName(candidate, false, loader);
+                return candidate;
+            } catch (ClassNotFoundException ignored) {}
+        }
+
+        throw new IllegalStateException("The MySQL driver is not on the classpath, expected one of "
+                + DRIVER_CLASS_NAMES);
     }
 
     /**

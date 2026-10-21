@@ -2,7 +2,6 @@ package it.impo.vyrautils.update;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jspecify.annotations.NonNull;
 
 import java.util.List;
 import java.util.Locale;
@@ -93,7 +92,7 @@ public record SemanticVersion(int major, int minor, int patch, @NotNull List<Str
     }
 
     @Override
-    public @NonNull String toString() {
+    public @NotNull String toString() {
         String core = major + "." + minor + "." + patch;
         return preRelease.isEmpty() ? core : core + "-" + String.join(".", preRelease);
     }
