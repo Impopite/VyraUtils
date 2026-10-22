@@ -1,15 +1,19 @@
 package it.impo.vyrautils.config;
 
+import it.impo.vyrautils.scheduling.Durations;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -20,6 +24,12 @@ import java.util.concurrent.ConcurrentHashMap;
  * plugin keeps working) or a raw dotted path, falls back to the given default and
  * logs a warning the first time a path is missing or has the wrong type. The warning
  * is logged once per path and reset on {@link #reload()}, to keep hot paths quiet.</p>
+ *
+ * <p>{@link #getComponent(String)} and {@link #getComponentList(String)} cache the
+ * parsed {@link Component}s, so repeated reads of the same path do not re-parse
+ * MiniMessage. The cache is invalidated by {@link #load()}, {@link #reload()},
+ * {@link #set(String, Object)}, {@link #addDefault(String, Object, String...)} and
+ * {@link #invalidate()}.</p>
  *
  * <p>{@link #load()}, {@link #reload()} and the setters must be called from the main
  * thread. After loading, the getters may be called from other threads: the cached
@@ -34,8 +44,16 @@ public final class ConfigLoader {
 
     private static final MiniMessage MINI_MESSAGE = MiniMessage.miniMessage();
 
+    /**
+     * Upper bound of the parsed component caches. A caller passing dynamic paths
+     * (for example one per player) would otherwise grow them without a limit.
+     */
+    private static final int MAX_CACHED_COMPONENTS = 512;
+
     private final Plugin plugin;
     private final Set<String> warned = ConcurrentHashMap.newKeySet();
+    private final Map<String, Component> componentCache = new ConcurrentHashMap<>();
+    private final Map<String, List<Component>> componentListCache = new ConcurrentHashMap<>();
 
     private volatile FileConfiguration config;
 
@@ -49,6 +67,7 @@ public final class ConfigLoader {
     public @NotNull ConfigLoader load() {
         plugin.saveDefaultConfig();
         this.config = plugin.getConfig();
+        invalidate();
         return this;
     }
 
@@ -60,6 +79,17 @@ public final class ConfigLoader {
         plugin.reloadConfig();
         this.warned.clear();
         this.config = plugin.getConfig();
+        invalidate();
+    }
+
+    /**
+     * Clears the parsed component caches. Call it after mutating the configuration
+     * directly through {@link #raw()}: the getters of this class invalidate the caches
+     * themselves, a direct mutation cannot be detected.
+     */
+    public void invalidate() {
+        componentCache.clear();
+        componentListCache.clear();
     }
 
     /**
@@ -69,6 +99,7 @@ public final class ConfigLoader {
         if (config == null) {
             throw new IllegalStateException("ConfigLoader.load() has not been called yet");
         }
+
         return config;
     }
 
@@ -130,6 +161,60 @@ public final class ConfigLoader {
     }
 
     /**
+     * Reads an optional value, without logging anything when it is missing.
+     * Use it for the keys that are allowed to be absent.
+     *
+     * @return the value, or {@code null} when the path is missing
+     */
+    public @Nullable String getOptionalString(@NotNull ConfigPath key) {
+        return getOptionalString(key.getPath());
+    }
+
+    /**
+     * @see #getOptionalString(ConfigPath)
+     */
+    public @Nullable String getOptionalString(@NotNull String path) {
+        return raw().getString(path);
+    }
+
+    /**
+     * @return the section, or {@code null} when the path is missing or is not a section
+     */
+    public @Nullable ConfigurationSection getSection(@NotNull ConfigPath key) {
+        return getSection(key.getPath());
+    }
+
+    /**
+     * @see #getSection(ConfigPath)
+     */
+    public @Nullable ConfigurationSection getSection(@NotNull String path) {
+        return raw().getConfigurationSection(path);
+    }
+
+    /**
+     * Reads a duration written as {@code 1d2h30m}, see {@link Durations#parse(String)}.
+     *
+     * @return the parsed duration, or {@code def} when the path is missing or invalid
+     */
+    public @NotNull Duration getDuration(@NotNull ConfigPath key, @NotNull Duration def) {
+        return getDuration(key.getPath(), def);
+    }
+
+    /**
+     * @see #getDuration(ConfigPath, Duration)
+     */
+    public @NotNull Duration getDuration(@NotNull String path, @NotNull Duration def) {
+        String value = raw().getString(path);
+        if (value == null) return warn(path, def);
+
+        try {
+            return Durations.parse(value);
+        } catch (IllegalArgumentException exception) {
+            return warn(path, def);
+        }
+    }
+
+    /**
      * @return an immutable copy of the list, empty when the path is missing
      */
     public @NotNull List<String> getStringList(@NotNull ConfigPath key) {
@@ -144,15 +229,20 @@ public final class ConfigLoader {
             warn(path, List.of());
             return List.of();
         }
+
         if (!raw().isList(path)) {
             warn(path, List.of());
             return List.of();
         }
+
         return List.copyOf(raw().getStringList(path));
     }
 
     /**
      * Parses a MiniMessage string from the config.
+     *
+     * <p>The result is cached until {@link #reload()}, {@link #set(String, Object)},
+     * {@link #addDefault(String, Object, String...)} or {@link #invalidate()} is called.</p>
      *
      * @return an empty component when the path is missing or blank
      */
@@ -163,15 +253,27 @@ public final class ConfigLoader {
     /**
      * Parses a MiniMessage string from the config.
      *
+     * <p>The result is cached until {@link #reload()}, {@link #set(String, Object)},
+     * {@link #addDefault(String, Object, String...)} or {@link #invalidate()} is called.</p>
+     *
      * @return an empty component when the path is missing or blank
      */
     public @NotNull Component getComponent(@NotNull String path) {
+        Component cached = componentCache.get(path);
+        if (cached != null) return cached;
+
         String raw = raw().getString(path, "");
-        return raw.isEmpty() ? Component.empty() : MINI_MESSAGE.deserialize(raw);
+        Component component = raw.isEmpty() ? Component.empty() : MINI_MESSAGE.deserialize(raw);
+
+        cache(componentCache, path, component);
+        return component;
     }
 
     /**
      * Parses every entry of a string list as MiniMessage.
+     *
+     * <p>The result is cached until {@link #reload()}, {@link #set(String, Object)},
+     * {@link #addDefault(String, Object, String...)} or {@link #invalidate()} is called.</p>
      */
     public @NotNull List<Component> getComponentList(@NotNull ConfigPath key) {
         return getComponentList(key.getPath());
@@ -179,18 +281,29 @@ public final class ConfigLoader {
 
     /**
      * Parses every entry of a string list as MiniMessage.
+     *
+     * <p>The result is cached until {@link #reload()}, {@link #set(String, Object)},
+     * {@link #addDefault(String, Object, String...)} or {@link #invalidate()} is called.</p>
      */
     public @NotNull List<Component> getComponentList(@NotNull String path) {
+        List<Component> cached = componentListCache.get(path);
+        if (cached != null) return cached;
+
         List<String> raw = getStringList(path);
+        List<Component> parsed;
         if (raw.isEmpty()) {
-            return List.of();
+            parsed = List.of();
+        } else {
+            List<Component> lines = new ArrayList<>(raw.size());
+            for (String line : raw) {
+                lines.add(line.isEmpty() ? Component.empty() : MINI_MESSAGE.deserialize(line));
+            }
+
+            parsed = List.copyOf(lines);
         }
 
-        List<Component> components = new ArrayList<>(raw.size());
-        for (String line : raw) {
-            components.add(line.isEmpty() ? Component.empty() : MINI_MESSAGE.deserialize(line));
-        }
-        return List.copyOf(components);
+        cache(componentListCache, path, parsed);
+        return parsed;
     }
 
     /**
@@ -212,15 +325,14 @@ public final class ConfigLoader {
     @SuppressWarnings("unchecked")
     public <T> T get(@NotNull String path, @NotNull T def) {
         Object value = raw().get(path);
-        if (value == null) {
-            return warn(path, def);
-        }
+        if (value == null) return warn(path, def);
+
         if (value instanceof List<?> list && def instanceof List<?>) {
             return (T) Collections.unmodifiableList(new ArrayList<>(list));
         }
-        if (def.getClass().isInstance(value)) {
-            return (T) value;
-        }
+
+        if (def.getClass().isInstance(value)) return (T) value;
+
         return warn(path, def);
     }
 
@@ -230,6 +342,7 @@ public final class ConfigLoader {
 
     public void set(@NotNull String path, @Nullable Object value) {
         raw().set(path, value);
+        invalidate();
     }
 
     public void setComments(@NotNull ConfigPath key, @NotNull List<String> comments) {
@@ -262,14 +375,12 @@ public final class ConfigLoader {
      * @see #addDefault(ConfigPath, Object, String...)
      */
     public boolean addDefault(@NotNull String path, @Nullable Object value, @NotNull String... comments) {
-        if (raw().isSet(path)) {
-            return false;
-        }
+        if (raw().isSet(path)) return false;
 
         raw().set(path, value);
-        if (comments.length > 0) {
-            raw().setComments(path, List.of(comments));
-        }
+        if (comments.length > 0) raw().setComments(path, List.of(comments));
+        invalidate();
+
         return true;
     }
 
@@ -280,19 +391,22 @@ public final class ConfigLoader {
 
     private <T> T warn(@NotNull String path, T def) {
         if (warned.add(path)) {
-            plugin.getLogger().warning("[Config] Missing or invalid value for '" + path
-                    + "', using default: " + describe(def));
+            plugin.getLogger().warning("[Config] Missing or invalid value for '" + path + "', using default: " + describe(def));
         }
+
         return def;
     }
 
+    private static <T> void cache(@NotNull Map<String, T> cache, @NotNull String path, @NotNull T value) {
+        if (cache.size() >= MAX_CACHED_COMPONENTS) cache.clear();
+
+        cache.put(path, value);
+    }
+
     private static @NotNull String describe(@Nullable Object value) {
-        if (value == null) {
-            return "null";
-        }
-        if (value instanceof List<?> list) {
-            return list.isEmpty() ? "[]" : list.toString();
-        }
+        if (value == null) return "null";
+        if (value instanceof List<?> list) return list.isEmpty() ? "[]" : list.toString();
+
         return String.valueOf(value);
     }
 }

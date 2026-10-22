@@ -48,18 +48,14 @@ public final class Placeholders {
         return value == null ? TagResolver.empty() : Placeholder.unparsed(name, String.valueOf(value));
     }
 
-    private static @NotNull TagResolver build(@NotNull Map<String, ?> values,
-                                              @NotNull BiFunction<String, String, TagResolver> factory) {
-        if (values.isEmpty()) {
-            return TagResolver.empty();
-        }
+    private static @NotNull TagResolver build(@NotNull Map<String, ?> values, @NotNull BiFunction<String, String, TagResolver> factory) {
+        if (values.isEmpty()) return TagResolver.empty();
 
         TagResolver.Builder builder = TagResolver.builder();
         values.forEach((name, value) -> {
-            if (name != null && value != null) {
-                builder.resolver(factory.apply(name, String.valueOf(value)));
-            }
+            if (name != null && value != null) builder.resolver(factory.apply(name, String.valueOf(value)));
         });
+
         return builder.build();
     }
 }

@@ -28,6 +28,7 @@ import java.util.regex.Pattern;
 public final class Durations {
 
     private static final Pattern COMPONENT = Pattern.compile("(\\d+(?:\\.\\d+)?)([dhms]?)");
+    private static final Pattern WHITESPACE = Pattern.compile("\\s+");
     private static final long SECONDS_PER_DAY = 86_400L;
     private static final long SECONDS_PER_HOUR = 3_600L;
     private static final long SECONDS_PER_MINUTE = 60L;
@@ -38,28 +39,22 @@ public final class Durations {
      * @throws IllegalArgumentException when the text is not a duration
      */
     public static @NotNull Duration parse(@NotNull String text) {
-        String input = text.trim().toLowerCase(Locale.ROOT).replaceAll("\\s+", "");
-        if (input.isEmpty()) {
-            throw new IllegalArgumentException("Empty duration");
-        }
+        String input = WHITESPACE.matcher(text.trim()).replaceAll("").toLowerCase(Locale.ROOT);
+        if (input.isEmpty()) throw new IllegalArgumentException("Empty duration");
 
         Matcher matcher = COMPONENT.matcher(input);
         int index = 0;
         double millis = 0;
 
         while (matcher.find()) {
-            if (matcher.start() != index) {
-                throw invalid(text);
-            }
+            if (matcher.start() != index) throw invalid(text);
 
             double amount = Double.parseDouble(matcher.group(1));
             millis += amount * millisPerUnit(matcher.group(2), text);
             index = matcher.end();
         }
 
-        if (index != input.length()) {
-            throw invalid(text);
-        }
+        if (index != input.length()) throw invalid(text);
 
         return Duration.ofMillis(Math.round(millis));
     }
@@ -81,9 +76,7 @@ public final class Durations {
      * milliseconds.
      */
     public static @NotNull String format(@NotNull Duration duration) {
-        if (duration.isZero() || duration.isNegative()) {
-            return "0s";
-        }
+        if (duration.isZero() || duration.isNegative()) return "0s";
 
         long seconds = duration.getSeconds();
         long days = seconds / SECONDS_PER_DAY;
@@ -92,9 +85,7 @@ public final class Durations {
         long remainingSeconds = seconds % SECONDS_PER_MINUTE;
         long millis = duration.getNano() / 1_000_000L;
 
-        if (seconds == 0 && millis > 0) {
-            return millis + "ms";
-        }
+        if (seconds == 0 && millis > 0) return millis + "ms";
 
         List<String> parts = new ArrayList<>(4);
         addPart(parts, days, "d");
@@ -102,9 +93,7 @@ public final class Durations {
         addPart(parts, minutes, "m");
         addPart(parts, remainingSeconds, "s");
 
-        if (parts.isEmpty()) {
-            return "0s";
-        }
+        if (parts.isEmpty()) return "0s";
 
         return String.join(" ", parts);
     }
@@ -152,9 +141,7 @@ public final class Durations {
     }
 
     private static void addPart(@NotNull List<String> parts, long value, @NotNull String suffix) {
-        if (value > 0) {
-            parts.add(value + suffix);
-        }
+        if (value > 0) parts.add(value + suffix);
     }
 
     private static @NotNull IllegalArgumentException invalid(@NotNull String text) {

@@ -24,9 +24,7 @@ public final class Components {
      * @return the parsed component, or an empty component for {@code null}/blank input
      */
     public static @NotNull Component parse(@Nullable String input) {
-        if (input == null || input.isEmpty()) {
-            return Component.empty();
-        }
+        if (input == null || input.isEmpty()) return Component.empty();
 
         try {
             return MINI_MESSAGE.deserialize(input);
@@ -64,11 +62,8 @@ public final class Components {
      * Joins components with the given separator, without relying on Adventure's
      * {@code Component#join}.
      */
-    public static @NotNull Component join(@NotNull Collection<? extends Component> parts,
-                                          @NotNull Component separator) {
-        if (parts.isEmpty()) {
-            return Component.empty();
-        }
+    public static @NotNull Component join(@NotNull Collection<? extends Component> parts, @NotNull Component separator) {
+        if (parts.isEmpty()) return Component.empty();
 
         Component result = Component.empty();
         boolean first = true;

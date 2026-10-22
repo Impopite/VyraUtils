@@ -10,10 +10,7 @@ import org.jetbrains.annotations.NotNull;
  * @param pageUrl     the project page, always available and safe to open
  * @param versionType {@code release}, {@code beta} or {@code alpha}
  */
-public record UpdateInfo(@NotNull String version,
-                         @NotNull String downloadUrl,
-                         @NotNull String pageUrl,
-                         @NotNull String versionType) {
+public record UpdateInfo(@NotNull String version, @NotNull String downloadUrl, @NotNull String pageUrl, @NotNull String versionType) {
 
     public @NotNull String bestUrl() {
         return downloadUrl.isEmpty() ? pageUrl : downloadUrl;

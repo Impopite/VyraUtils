@@ -27,19 +27,10 @@ import java.util.Objects;
  *                                 {@code caching_sha2_password} when {@code ssl} is
  *                                 {@code false}
  */
-public record DatabaseSettings(
-        @NotNull String host,
-        int port,
-        @NotNull String database,
-        @NotNull String username,
-        @NotNull String password,
-        boolean ssl,
-        int poolSize,
-        int connectionTimeoutSeconds,
-        int maxLifetimeSeconds,
-        int idleTimeoutSeconds,
-        boolean allowPublicKeyRetrieval
-) {
+public record DatabaseSettings(@NotNull String host, int port, @NotNull String database,
+                               @NotNull String username, @NotNull String password, boolean ssl,
+                               int poolSize, int connectionTimeoutSeconds, int maxLifetimeSeconds,
+                               int idleTimeoutSeconds, boolean allowPublicKeyRetrieval) {
 
     private static final int DEFAULT_PORT = 3306;
     private static final int DEFAULT_POOL_SIZE = 5;
@@ -55,9 +46,7 @@ public record DatabaseSettings(
         Objects.requireNonNull(username, "username");
         Objects.requireNonNull(password, "password");
 
-        if (port <= 0) {
-            port = DEFAULT_PORT;
-        }
+        if (port <= 0) port = DEFAULT_PORT;
 
         poolSize = Math.max(1, poolSize);
         connectionTimeoutSeconds = Math.max(MIN_TIMEOUT_SECONDS, connectionTimeoutSeconds);
@@ -69,18 +58,8 @@ public record DatabaseSettings(
      * Creates settings with {@code allowPublicKeyRetrieval} set to {@code false},
      * so calls written before the field was added keep compiling.
      */
-    public DatabaseSettings(@NotNull String host,
-                            int port,
-                            @NotNull String database,
-                            @NotNull String username,
-                            @NotNull String password,
-                            boolean ssl,
-                            int poolSize,
-                            int connectionTimeoutSeconds,
-                            int maxLifetimeSeconds,
-                            int idleTimeoutSeconds) {
-        this(host, port, database, username, password, ssl, poolSize,
-                connectionTimeoutSeconds, maxLifetimeSeconds, idleTimeoutSeconds, false);
+    public DatabaseSettings(@NotNull String host, int port, @NotNull String database, @NotNull String username, @NotNull String password, boolean ssl, int poolSize, int connectionTimeoutSeconds, int maxLifetimeSeconds, int idleTimeoutSeconds) {
+        this(host, port, database, username, password, ssl, poolSize, connectionTimeoutSeconds, maxLifetimeSeconds, idleTimeoutSeconds, false);
     }
 
     /**
@@ -93,13 +72,8 @@ public record DatabaseSettings(
     /**
      * @return settings with the default port, no TLS and the default pool sizes
      */
-    public static @NotNull DatabaseSettings defaults(@NotNull String host,
-                                                     @NotNull String database,
-                                                     @NotNull String username,
-                                                     @NotNull String password) {
-        return new DatabaseSettings(host, DEFAULT_PORT, database, username, password,
-                false, DEFAULT_POOL_SIZE, DEFAULT_CONNECTION_TIMEOUT_SECONDS,
-                DEFAULT_MAX_LIFETIME_SECONDS, DEFAULT_IDLE_TIMEOUT_SECONDS, false);
+    public static @NotNull DatabaseSettings defaults(@NotNull String host, @NotNull String database, @NotNull String username, @NotNull String password) {
+        return new DatabaseSettings(host, DEFAULT_PORT, database, username, password, false, DEFAULT_POOL_SIZE, DEFAULT_CONNECTION_TIMEOUT_SECONDS, DEFAULT_MAX_LIFETIME_SECONDS, DEFAULT_IDLE_TIMEOUT_SECONDS, false);
     }
 
     /**
