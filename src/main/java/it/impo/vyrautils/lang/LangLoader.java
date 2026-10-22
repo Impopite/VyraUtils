@@ -56,10 +56,7 @@ public final class LangLoader {
     private final Set<MessageKey> missingKeys;
     private final Set<MessageKey> staticKeys;
 
-    private LangLoader(@NotNull YamlConfiguration config,
-                       @NotNull Collection<? extends MessageKey> keys,
-                       @Nullable MessageKey prefixKey,
-                       @Nullable Plugin plugin) {
+    private LangLoader(@NotNull YamlConfiguration config, @NotNull Collection<? extends MessageKey> keys, @Nullable MessageKey prefixKey, @Nullable Plugin plugin) {
         this.config = config;
         this.prefixKey = prefixKey;
         this.palette = buildPalette(config);
@@ -76,9 +73,7 @@ public final class LangLoader {
             String raw = config.getString(key.getPath(), "");
             plainMessages.put(key, parseSafely(key, raw, plugin, blankKeys));
 
-            if (raw.indexOf('<') < 0) {
-                noTagKeys.add(key);
-            }
+            if (raw.indexOf('<') < 0) noTagKeys.add(key);
         }
 
         this.plain = Collections.unmodifiableMap(plainMessages);
@@ -91,15 +86,13 @@ public final class LangLoader {
             Map<MessageKey, Component> prefixedMessages = new LinkedHashMap<>();
             for (Map.Entry<MessageKey, Component> entry : plainMessages.entrySet()) {
                 boolean isPrefix = entry.getKey().equals(prefixKey);
-                prefixedMessages.put(entry.getKey(),
-                        isPrefix ? entry.getValue() : prefix.append(entry.getValue()));
+                prefixedMessages.put(entry.getKey(), isPrefix ? entry.getValue() : prefix.append(entry.getValue()));
             }
+
             this.prefixed = Collections.unmodifiableMap(prefixedMessages);
         }
 
-        if (plugin != null) {
-            reportMissingKeys(plugin, this.missingKeys);
-        }
+        if (plugin != null) reportMissingKeys(plugin, this.missingKeys);
     }
 
     /**
@@ -113,32 +106,25 @@ public final class LangLoader {
      * @param prefixKey        key of the message used as prefix, or {@code null} for none
      * @param fallbackResource bundled resource used when {@code filePath} is missing
      */
-    public static @NotNull LangLoader fromFile(@NotNull Plugin plugin,
-                                               @NotNull String filePath,
-                                               @NotNull Collection<? extends MessageKey> keys,
-                                               @Nullable MessageKey prefixKey,
-                                               @NotNull String fallbackResource) {
+    public static @NotNull LangLoader fromFile(@NotNull Plugin plugin, @NotNull String filePath, @NotNull Collection<? extends MessageKey> keys, @Nullable MessageKey prefixKey, @NotNull String fallbackResource) {
         File file = new File(plugin.getDataFolder(), filePath);
 
         if (file.isFile()) {
             YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
             if (file.length() > 0L && config.getKeys(false).isEmpty()) {
-                plugin.getLogger().severe("[Lang] Language file '" + filePath
-                        + "' is empty or invalid, every message will be empty");
+                plugin.getLogger().severe("[Lang] Language file '" + filePath + "' is empty or invalid, every message will be empty");
             }
 
             plugin.getLogger().info("[Lang] Loaded language file: " + filePath);
             return new LangLoader(config, keys, prefixKey, plugin);
         }
 
-        plugin.getLogger().severe("[Lang] Language file not found: " + filePath
-                + ". Falling back to the bundled " + fallbackResource + ".");
+        plugin.getLogger().severe("[Lang] Language file not found: " + filePath + ". Falling back to the bundled " + fallbackResource + ".");
 
         InputStream stream = plugin.getResource(fallbackResource);
         if (stream == null) {
-            plugin.getLogger().severe("[Lang] Plugin '" + plugin.getName() + "' does not bundle '"
-                    + fallbackResource + "' and '" + filePath + "' is missing from the data folder:"
-                    + " all messages will be empty");
+            plugin.getLogger().severe("[Lang] Plugin '" + plugin.getName() + "' does not bundle '" + fallbackResource + "' and '" + filePath
+                + "' is missing from the data folder:" + " all messages will be empty");
             return fromConfiguration(new YamlConfiguration(), keys, prefixKey);
         }
 
@@ -161,19 +147,14 @@ public final class LangLoader {
      * @param keys      every message key the plugin knows about
      * @param prefixKey key of the message used as prefix, or {@code null} for none
      */
-    public static @NotNull LangLoader fromFile(@NotNull Plugin plugin,
-                                               @NotNull String filePath,
-                                               @NotNull Collection<? extends MessageKey> keys,
-                                               @Nullable MessageKey prefixKey) {
+    public static @NotNull LangLoader fromFile(@NotNull Plugin plugin, @NotNull String filePath, @NotNull Collection<? extends MessageKey> keys, @Nullable MessageKey prefixKey) {
         return fromFile(plugin, filePath, keys, prefixKey, DEFAULT_FALLBACK);
     }
 
     /**
      * Loads messages without a prefix.
      */
-    public static @NotNull LangLoader fromFile(@NotNull Plugin plugin,
-                                               @NotNull String filePath,
-                                               @NotNull Collection<? extends MessageKey> keys) {
+    public static @NotNull LangLoader fromFile(@NotNull Plugin plugin, @NotNull String filePath, @NotNull Collection<? extends MessageKey> keys) {
         return fromFile(plugin, filePath, keys, null);
     }
 
@@ -181,9 +162,7 @@ public final class LangLoader {
      * Builds a loader from an already parsed configuration, without logging.
      * Useful to merge messages loaded from other sources.
      */
-    public static @NotNull LangLoader fromConfiguration(@NotNull YamlConfiguration config,
-                                                        @NotNull Collection<? extends MessageKey> keys,
-                                                        @Nullable MessageKey prefixKey) {
+    public static @NotNull LangLoader fromConfiguration(@NotNull YamlConfiguration config, @NotNull Collection<? extends MessageKey> keys, @Nullable MessageKey prefixKey) {
         return new LangLoader(config, keys, prefixKey, null);
     }
 
@@ -193,17 +172,9 @@ public final class LangLoader {
      * An empty component is returned, without the prefix, when the key is missing or empty.
      */
     public @NotNull Component get(@NotNull MessageKey key, TagResolver... resolvers) {
-        if (isBlank(key)) {
-            return Component.empty();
-        }
-
-        if (resolvers.length == 0 || staticKeys.contains(key)) {
-            return prefixed.getOrDefault(key, Component.empty());
-        }
-
-        if (key.equals(prefixKey)) {
-            return component(key, resolvers);
-        }
+        if (isBlank(key)) return Component.empty();
+        if (resolvers.length == 0 || staticKeys.contains(key)) return prefixed.getOrDefault(key, Component.empty());
+        if (key.equals(prefixKey)) return component(key, resolvers);
 
         return prefix.append(component(key, resolvers));
     }
@@ -213,13 +184,8 @@ public final class LangLoader {
      * the key is missing or empty.
      */
     public @NotNull Component component(@NotNull MessageKey key, TagResolver... resolvers) {
-        if (isBlank(key)) {
-            return Component.empty();
-        }
-
-        if (resolvers.length == 0 || staticKeys.contains(key)) {
-            return plain.getOrDefault(key, Component.empty());
-        }
+        if (isBlank(key)) return Component.empty();
+        if (resolvers.length == 0 || staticKeys.contains(key)) return plain.getOrDefault(key, Component.empty());
 
         return parse(raw(key), resolvers);
     }
@@ -235,14 +201,11 @@ public final class LangLoader {
      * Parses arbitrary text as MiniMessage, applying the config {@code vars} palette.
      */
     public @NotNull Component parse(@Nullable String raw, TagResolver... resolvers) {
-        if (raw == null || raw.isEmpty()) {
-            return Component.empty();
-        }
+        if (raw == null || raw.isEmpty()) return Component.empty();
         return MINI_MESSAGE.deserialize(raw, combine(resolvers));
     }
 
-    private @NotNull Component parseSafely(@NotNull MessageKey key, @Nullable String raw,
-                                           @Nullable Plugin plugin, @NotNull Set<MessageKey> blankKeys) {
+    private @NotNull Component parseSafely(@NotNull MessageKey key, @Nullable String raw, @Nullable Plugin plugin, @NotNull Set<MessageKey> blankKeys) {
         if (raw == null || raw.isEmpty()) {
             blankKeys.add(key);
             return Component.empty();
@@ -253,8 +216,7 @@ public final class LangLoader {
         } catch (RuntimeException exception) {
             blankKeys.add(key);
             if (plugin != null) {
-                plugin.getLogger().warning("[Lang] Invalid MiniMessage for '"
-                        + key.getPath() + "': " + exception.getMessage());
+                plugin.getLogger().warning("[Lang] Invalid MiniMessage for '" + key.getPath() + "': " + exception.getMessage());
             }
             return Component.empty();
         }
@@ -313,13 +275,7 @@ public final class LangLoader {
      * @param stay       stay time
      * @param fadeOut    fade out time
      */
-    public void sendTitle(@NotNull CommandSender sender,
-                          @NotNull MessageKey titleKey,
-                          @Nullable MessageKey subtitleKey,
-                          @NotNull Duration fadeIn,
-                          @NotNull Duration stay,
-                          @NotNull Duration fadeOut,
-                          TagResolver... resolvers) {
+    public void sendTitle(@NotNull CommandSender sender, @NotNull MessageKey titleKey, @Nullable MessageKey subtitleKey, @NotNull Duration fadeIn, @NotNull Duration stay, @NotNull Duration fadeOut, TagResolver... resolvers) {
         Component title = component(titleKey, resolvers);
         Component subtitle = subtitleKey == null ? Component.empty() : component(subtitleKey, resolvers);
 
@@ -329,12 +285,8 @@ public final class LangLoader {
     /**
      * Shows a title with the default timings (10 ticks in, 70 stay, 20 out).
      */
-    public void sendTitle(@NotNull CommandSender sender,
-                          @NotNull MessageKey titleKey,
-                          @Nullable MessageKey subtitleKey,
-                          TagResolver... resolvers) {
-        sendTitle(sender, titleKey, subtitleKey,
-                Duration.ofMillis(500), Duration.ofSeconds(3), Duration.ofSeconds(1), resolvers);
+    public void sendTitle(@NotNull CommandSender sender, @NotNull MessageKey titleKey, @Nullable MessageKey subtitleKey, TagResolver... resolvers) {
+        sendTitle(sender, titleKey, subtitleKey, Duration.ofMillis(500), Duration.ofSeconds(3), Duration.ofSeconds(1), resolvers);
     }
 
     /**
@@ -346,13 +298,8 @@ public final class LangLoader {
 
     private @NotNull TagResolver combine(@NotNull TagResolver... resolvers) {
         TagResolver built = palette;
-        if (built == null) {
-            return resolvers.length == 0 ? TagResolver.empty() : TagResolver.resolver(resolvers);
-        }
-
-        if (resolvers.length == 0) {
-            return built;
-        }
+        if (built == null) return resolvers.length == 0 ? TagResolver.empty() : TagResolver.resolver(resolvers);
+        if (resolvers.length == 0) return built;
 
         TagResolver[] all = new TagResolver[resolvers.length + 1];
         all[0] = built;
@@ -361,9 +308,7 @@ public final class LangLoader {
     }
 
     private static void reportMissingKeys(@NotNull Plugin plugin, @NotNull Collection<MessageKey> missing) {
-        if (missing.isEmpty()) {
-            return;
-        }
+        if (missing.isEmpty()) return;
 
         String preview = missing.stream()
                 .limit(MISSING_KEYS_LOG_LIMIT)
@@ -372,15 +317,12 @@ public final class LangLoader {
                 .orElse("");
 
         String suffix = missing.size() > MISSING_KEYS_LOG_LIMIT ? ", ..." : "";
-        plugin.getLogger().warning("[Lang] " + missing.size()
-                + " message key(s) are missing or empty: " + preview + suffix);
+        plugin.getLogger().warning("[Lang] " + missing.size() + " message key(s) are missing or empty: " + preview + suffix);
     }
 
     private static @Nullable TagResolver buildPalette(@NotNull YamlConfiguration config) {
         ConfigurationSection vars = config.getConfigurationSection("vars");
-        if (vars == null) {
-            return null;
-        }
+        if (vars == null) return null;
 
         TagResolver.Builder builder = TagResolver.builder();
         for (String key : vars.getKeys(false)) {
@@ -389,6 +331,7 @@ public final class LangLoader {
                 builder.resolver(Placeholder.parsed(key.toLowerCase(Locale.ROOT), value));
             }
         }
+
         return builder.build();
     }
 }

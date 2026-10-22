@@ -72,6 +72,7 @@ public final class ConfigLoader {
         if (config == null) {
             throw new IllegalStateException("ConfigLoader.load() has not been called yet");
         }
+
         return config;
     }
 
@@ -177,9 +178,7 @@ public final class ConfigLoader {
      */
     public @NotNull Duration getDuration(@NotNull String path, @NotNull Duration def) {
         String value = raw().getString(path);
-        if (value == null) {
-            return warn(path, def);
-        }
+        if (value == null) return warn(path, def);
 
         try {
             return Durations.parse(value);
@@ -203,10 +202,12 @@ public final class ConfigLoader {
             warn(path, List.of());
             return List.of();
         }
+
         if (!raw().isList(path)) {
             warn(path, List.of());
             return List.of();
         }
+
         return List.copyOf(raw().getStringList(path));
     }
 
@@ -241,14 +242,13 @@ public final class ConfigLoader {
      */
     public @NotNull List<Component> getComponentList(@NotNull String path) {
         List<String> raw = getStringList(path);
-        if (raw.isEmpty()) {
-            return List.of();
-        }
+        if (raw.isEmpty()) return List.of();
 
         List<Component> components = new ArrayList<>(raw.size());
         for (String line : raw) {
             components.add(line.isEmpty() ? Component.empty() : MINI_MESSAGE.deserialize(line));
         }
+
         return List.copyOf(components);
     }
 
@@ -271,15 +271,14 @@ public final class ConfigLoader {
     @SuppressWarnings("unchecked")
     public <T> T get(@NotNull String path, @NotNull T def) {
         Object value = raw().get(path);
-        if (value == null) {
-            return warn(path, def);
-        }
+        if (value == null) return warn(path, def);
+
         if (value instanceof List<?> list && def instanceof List<?>) {
             return (T) Collections.unmodifiableList(new ArrayList<>(list));
         }
-        if (def.getClass().isInstance(value)) {
-            return (T) value;
-        }
+
+        if (def.getClass().isInstance(value)) return (T) value;
+
         return warn(path, def);
     }
 
@@ -321,14 +320,11 @@ public final class ConfigLoader {
      * @see #addDefault(ConfigPath, Object, String...)
      */
     public boolean addDefault(@NotNull String path, @Nullable Object value, @NotNull String... comments) {
-        if (raw().isSet(path)) {
-            return false;
-        }
+        if (raw().isSet(path)) return false;
 
         raw().set(path, value);
-        if (comments.length > 0) {
-            raw().setComments(path, List.of(comments));
-        }
+        if (comments.length > 0) raw().setComments(path, List.of(comments));
+
         return true;
     }
 
@@ -339,19 +335,16 @@ public final class ConfigLoader {
 
     private <T> T warn(@NotNull String path, T def) {
         if (warned.add(path)) {
-            plugin.getLogger().warning("[Config] Missing or invalid value for '" + path
-                    + "', using default: " + describe(def));
+            plugin.getLogger().warning("[Config] Missing or invalid value for '" + path + "', using default: " + describe(def));
         }
+
         return def;
     }
 
     private static @NotNull String describe(@Nullable Object value) {
-        if (value == null) {
-            return "null";
-        }
-        if (value instanceof List<?> list) {
-            return list.isEmpty() ? "[]" : list.toString();
-        }
+        if (value == null) return "null";
+        if (value instanceof List<?> list) return list.isEmpty() ? "[]" : list.toString();
+
         return String.valueOf(value);
     }
 }

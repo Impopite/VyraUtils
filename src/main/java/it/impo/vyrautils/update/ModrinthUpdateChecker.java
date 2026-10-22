@@ -65,13 +65,11 @@ public final class ModrinthUpdateChecker implements AutoCloseable {
         this(plugin, projectSlug, plugin.getPluginMeta().getVersion(), UpdateChannel.RELEASE);
     }
 
-    public ModrinthUpdateChecker(@NotNull Plugin plugin, @NotNull String projectSlug,
-                                 @NotNull String currentVersion) {
+    public ModrinthUpdateChecker(@NotNull Plugin plugin, @NotNull String projectSlug, @NotNull String currentVersion) {
         this(plugin, projectSlug, currentVersion, UpdateChannel.RELEASE);
     }
 
-    public ModrinthUpdateChecker(@NotNull Plugin plugin, @NotNull String projectSlug,
-                                 @NotNull String currentVersion, @NotNull UpdateChannel channel) {
+    public ModrinthUpdateChecker(@NotNull Plugin plugin, @NotNull String projectSlug, @NotNull String currentVersion, @NotNull UpdateChannel channel) {
         this.plugin = plugin;
         this.projectSlug = projectSlug;
         this.currentVersion = currentVersion;
@@ -128,8 +126,7 @@ public final class ModrinthUpdateChecker implements AutoCloseable {
      */
     public @NotNull Optional<UpdateInfo> check() {
         if (Schedulers.isGlobalThread()) {
-            throw new IllegalStateException("check() blocks the calling thread for up to 10 seconds: "
-                    + "call it from an async thread or use checkAsync()");
+            throw new IllegalStateException("check() blocks the calling thread for up to 10 seconds: " + "call it from an async thread or use checkAsync()");
         }
 
         try {
@@ -183,17 +180,11 @@ public final class ModrinthUpdateChecker implements AutoCloseable {
      * Sends the update message with the {@code latest_version} and
      * {@code download_url} placeholders.
      */
-    public void notify(@NotNull CommandSender sender,
-                       @NotNull LangLoader lang,
-                       @NotNull MessageKey key) {
+    public void notify(@NotNull CommandSender sender, @NotNull LangLoader lang, @NotNull MessageKey key) {
         UpdateInfo info = latest;
-        if (info == null) {
-            return;
-        }
+        if (info == null) return;
 
-        lang.send(sender, key,
-                Placeholder.unparsed("latest_version", info.version()),
-                Placeholder.unparsed("download_url", info.bestUrl()));
+        lang.send(sender, key, Placeholder.unparsed("latest_version", info.version()), Placeholder.unparsed("download_url", info.bestUrl()));
     }
 
     private @NotNull Optional<UpdateInfo> parse(@NotNull String body) {
@@ -203,22 +194,16 @@ public final class ModrinthUpdateChecker implements AutoCloseable {
         SemanticVersion bestVersion = SemanticVersion.UNKNOWN;
 
         for (JsonElement element : versions) {
-            if (!element.isJsonObject()) {
-                continue;
-            }
+            if (!element.isJsonObject()) continue;
 
             JsonObject version = element.getAsJsonObject();
             String versionType = string(version, "version_type");
             String versionNumber = string(version, "version_number");
 
-            if (versionType == null || versionNumber == null || !channel.accepts(versionType)) {
-                continue;
-            }
+            if (versionType == null || versionNumber == null || !channel.accepts(versionType)) continue;
 
             SemanticVersion parsed = SemanticVersion.parse(versionNumber);
-            if (best != null && parsed.compareTo(bestVersion) <= 0) {
-                continue;
-            }
+            if (best != null && parsed.compareTo(bestVersion) <= 0) continue;
 
             best = new UpdateInfo(versionNumber, fileUrl(version), pageUrl, versionType);
             bestVersion = parsed;
@@ -230,8 +215,7 @@ public final class ModrinthUpdateChecker implements AutoCloseable {
         }
 
         latest = best;
-        plugin.getLogger().info("[Update] New version available: " + best.version()
-                + " (current: " + currentVersion + ")");
+        plugin.getLogger().info("[Update] New version available: " + best.version() + " (current: " + currentVersion + ")");
         return Optional.of(best);
     }
 
@@ -241,38 +225,25 @@ public final class ModrinthUpdateChecker implements AutoCloseable {
 
     private static @Nullable String string(@NotNull JsonObject object, @NotNull String key) {
         JsonElement element = object.get(key);
-        if (element == null || element.isJsonNull() || !element.isJsonPrimitive()) {
-            return null;
-        }
+        if (element == null || element.isJsonNull() || !element.isJsonPrimitive()) return null;
         return element.getAsString();
     }
 
     private static @NotNull String fileUrl(@NotNull JsonObject version) {
         JsonElement files = version.get("files");
-        if (files == null || !files.isJsonArray()) {
-            return "";
-        }
+        if (files == null || !files.isJsonArray()) return "";
 
         String fallback = "";
         for (JsonElement element : files.getAsJsonArray()) {
-            if (!element.isJsonObject()) {
-                continue;
-            }
+            if (!element.isJsonObject()) continue;
 
             JsonObject file = element.getAsJsonObject();
             String url = string(file, "url");
-            if (url == null || url.isEmpty()) {
-                continue;
-            }
+            if (url == null || url.isEmpty()) continue;
 
             JsonElement primary = file.get("primary");
-            if (primary != null && primary.isJsonPrimitive() && primary.getAsBoolean()) {
-                return url;
-            }
-
-            if (fallback.isEmpty()) {
-                fallback = url;
-            }
+            if (primary != null && primary.isJsonPrimitive() && primary.getAsBoolean()) return url;
+            if (fallback.isEmpty()) fallback = url;
         }
 
         return fallback;

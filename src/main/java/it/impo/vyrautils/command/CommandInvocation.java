@@ -68,9 +68,7 @@ public final class CommandInvocation {
      * {@code console-cant-do-command} message
      */
     public @Nullable Player player() {
-        if (sender instanceof Player player) {
-            return player;
-        }
+        if (sender instanceof Player player) return player;
 
         service.lang().send(sender, service.messages().consoleCantDo());
         return null;

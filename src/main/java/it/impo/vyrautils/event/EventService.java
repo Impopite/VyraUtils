@@ -45,9 +45,7 @@ public final class EventService {
      * Registering the same instance twice is ignored.
      */
     public <T extends Listener> @NotNull T register(@NotNull T listener) {
-        if (containsIdentity(listener)) {
-            return listener;
-        }
+        if (containsIdentity(listener)) return listener;
 
         Bukkit.getPluginManager().registerEvents(listener, plugin);
         listeners.add(listener);
@@ -55,9 +53,7 @@ public final class EventService {
     }
 
     public void registerAll(@NotNull Listener... listeners) {
-        for (Listener listener : listeners) {
-            register(listener);
-        }
+        for (Listener listener : listeners) register(listener);
     }
 
     /**
@@ -72,9 +68,7 @@ public final class EventService {
      * Unregisters every listener tracked by this registrar.
      */
     public void unregisterAll() {
-        for (Listener listener : List.copyOf(listeners)) {
-            HandlerList.unregisterAll(listener);
-        }
+        for (Listener listener : List.copyOf(listeners)) HandlerList.unregisterAll(listener);
         listeners.clear();
     }
 
@@ -94,9 +88,7 @@ public final class EventService {
      * listener class are two different registrations.
      */
     private boolean containsIdentity(@NotNull Listener listener) {
-        for (Listener tracked : listeners) {
-            if (tracked == listener) return true;
-        }
+        for (Listener tracked : listeners) if (tracked == listener) return true;
 
         return false;
     }

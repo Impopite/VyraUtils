@@ -164,9 +164,7 @@ public final class DatabasePool implements AutoCloseable {
      */
     @Override
     public void close() {
-        if (!dataSource.isClosed()) {
-            dataSource.close();
-        }
+        if (!dataSource.isClosed()) dataSource.close();
     }
 
     private <T> @NotNull CompletableFuture<T> run(@NotNull ConnectionAction<T> action) {
@@ -247,7 +245,6 @@ public final class DatabasePool implements AutoCloseable {
      */
     @FunctionalInterface
     public interface SqlFunction<T> {
-
         T apply(@NotNull Connection connection) throws SQLException;
     }
 
@@ -256,13 +253,11 @@ public final class DatabasePool implements AutoCloseable {
      */
     @FunctionalInterface
     public interface SqlUpdate {
-
         void apply(@NotNull Connection connection) throws SQLException;
     }
 
     @FunctionalInterface
     private interface ConnectionAction<T> {
-
         T run() throws SQLException;
     }
 }

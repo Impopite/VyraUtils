@@ -23,8 +23,7 @@ public final class Items {
      * Returns an edited copy of the template: an {@code AIR} template is returned
      * unchanged, without running the editor.
      */
-    public static @NotNull ItemStack edit(@NotNull ItemStack template,
-                                          @NotNull Consumer<? super ItemMeta> editor) {
+    public static @NotNull ItemStack edit(@NotNull ItemStack template, @NotNull Consumer<? super ItemMeta> editor) {
         ItemStack copy = template.clone();
         if (copy.getType().isAir()) return copy;
 

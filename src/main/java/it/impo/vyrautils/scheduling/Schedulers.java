@@ -56,77 +56,60 @@ public final class Schedulers {
     }
 
     public static @NotNull ScheduledTask syncLater(@NotNull Plugin plugin, @NotNull Runnable task, long delayTicks) {
-        return Bukkit.getGlobalRegionScheduler().runDelayed(plugin, scheduled -> task.run(),
-                Math.max(1L, delayTicks));
+        return Bukkit.getGlobalRegionScheduler().runDelayed(plugin, scheduled -> task.run(), Math.max(1L, delayTicks));
     }
 
-    public static @NotNull ScheduledTask syncTimer(@NotNull Plugin plugin, @NotNull Runnable task,
-                                                   long delayTicks, long periodTicks) {
-        return Bukkit.getGlobalRegionScheduler().runAtFixedRate(plugin, scheduled -> task.run(),
-                Math.max(1L, delayTicks), Math.max(1L, periodTicks));
+    public static @NotNull ScheduledTask syncTimer(@NotNull Plugin plugin, @NotNull Runnable task, long delayTicks, long periodTicks) {
+        return Bukkit.getGlobalRegionScheduler().runAtFixedRate(plugin, scheduled -> task.run(), Math.max(1L, delayTicks), Math.max(1L, periodTicks));
     }
 
     public static @NotNull ScheduledTask async(@NotNull Plugin plugin, @NotNull Runnable task) {
         return Bukkit.getAsyncScheduler().runNow(plugin, scheduled -> task.run());
     }
 
-    public static @NotNull ScheduledTask asyncLater(@NotNull Plugin plugin, @NotNull Runnable task,
-                                                    long delay, @NotNull TimeUnit unit) {
-        return Bukkit.getAsyncScheduler().runDelayed(plugin, scheduled -> task.run(),
-                Math.max(0L, delay), unit);
+    public static @NotNull ScheduledTask asyncLater(@NotNull Plugin plugin, @NotNull Runnable task, long delay, @NotNull TimeUnit unit) {
+        return Bukkit.getAsyncScheduler().runDelayed(plugin, scheduled -> task.run(), Math.max(0L, delay), unit);
     }
 
-    public static @NotNull ScheduledTask asyncLater(@NotNull Plugin plugin, @NotNull Runnable task,
-                                                    @NotNull Duration delay) {
+    public static @NotNull ScheduledTask asyncLater(@NotNull Plugin plugin, @NotNull Runnable task, @NotNull Duration delay) {
         return asyncLater(plugin, task, toMillis(delay), TimeUnit.MILLISECONDS);
     }
 
-    public static @NotNull ScheduledTask asyncTimer(@NotNull Plugin plugin, @NotNull Runnable task,
-                                                    long initialDelay, long period, @NotNull TimeUnit unit) {
-        return Bukkit.getAsyncScheduler().runAtFixedRate(plugin, scheduled -> task.run(),
-                Math.max(0L, initialDelay), Math.max(1L, period), unit);
+    public static @NotNull ScheduledTask asyncTimer(@NotNull Plugin plugin, @NotNull Runnable task, long initialDelay, long period, @NotNull TimeUnit unit) {
+        return Bukkit.getAsyncScheduler().runAtFixedRate(plugin, scheduled -> task.run(), Math.max(0L, initialDelay), Math.max(1L, period), unit);
     }
 
-    public static @NotNull ScheduledTask asyncTimer(@NotNull Plugin plugin, @NotNull Runnable task,
-                                                    @NotNull Duration initialDelay, @NotNull Duration period) {
+    public static @NotNull ScheduledTask asyncTimer(@NotNull Plugin plugin, @NotNull Runnable task, @NotNull Duration initialDelay, @NotNull Duration period) {
         return asyncTimer(plugin, task, toMillis(initialDelay), toMillis(period), TimeUnit.MILLISECONDS);
     }
 
-    public static @NotNull ScheduledTask region(@NotNull Plugin plugin, @NotNull Location location,
-                                                @NotNull Runnable task) {
+    public static @NotNull ScheduledTask region(@NotNull Plugin plugin, @NotNull Location location, @NotNull Runnable task) {
         return Bukkit.getRegionScheduler().run(plugin, location, scheduled -> task.run());
     }
 
-    public static @NotNull ScheduledTask regionLater(@NotNull Plugin plugin, @NotNull Location location,
-                                                     @NotNull Runnable task, long delayTicks) {
-        return Bukkit.getRegionScheduler().runDelayed(plugin, location, scheduled -> task.run(),
-                Math.max(1L, delayTicks));
+    public static @NotNull ScheduledTask regionLater(@NotNull Plugin plugin, @NotNull Location location, @NotNull Runnable task, long delayTicks) {
+        return Bukkit.getRegionScheduler().runDelayed(plugin, location, scheduled -> task.run(), Math.max(1L, delayTicks));
     }
 
     /**
      * Repeats a task on the region owning the location.
      */
-    public static @NotNull ScheduledTask regionTimer(@NotNull Plugin plugin, @NotNull Location location,
-                                                     @NotNull Runnable task, long delayTicks, long periodTicks) {
-        return Bukkit.getRegionScheduler().runAtFixedRate(plugin, location, scheduled -> task.run(),
-                Math.max(1L, delayTicks), Math.max(1L, periodTicks));
+    public static @NotNull ScheduledTask regionTimer(@NotNull Plugin plugin, @NotNull Location location, @NotNull Runnable task, long delayTicks, long periodTicks) {
+        return Bukkit.getRegionScheduler().runAtFixedRate(plugin, location, scheduled -> task.run(), Math.max(1L, delayTicks), Math.max(1L, periodTicks));
     }
 
     /**
      * @return the task, or {@code null} when the entity is already retired
      */
-    public static @Nullable ScheduledTask entity(@NotNull Plugin plugin, @NotNull Entity entity,
-                                                 @NotNull Runnable task) {
+    public static @Nullable ScheduledTask entity(@NotNull Plugin plugin, @NotNull Entity entity, @NotNull Runnable task) {
         return entity.getScheduler().run(plugin, scheduled -> task.run(), null);
     }
 
     /**
      * @return the task, or {@code null} when the entity is already retired
      */
-    public static @Nullable ScheduledTask entityLater(@NotNull Plugin plugin, @NotNull Entity entity,
-                                                      @NotNull Runnable task, long delayTicks) {
-        return entity.getScheduler().runDelayed(plugin, scheduled -> task.run(), null,
-                Math.max(1L, delayTicks));
+    public static @Nullable ScheduledTask entityLater(@NotNull Plugin plugin, @NotNull Entity entity, @NotNull Runnable task, long delayTicks) {
+        return entity.getScheduler().runDelayed(plugin, scheduled -> task.run(), null, Math.max(1L, delayTicks));
     }
 
     /**
@@ -134,10 +117,8 @@ public final class Schedulers {
      *
      * @return the task, or {@code null} when the entity is already retired
      */
-    public static @Nullable ScheduledTask entityTimer(@NotNull Plugin plugin, @NotNull Entity entity,
-                                                      @NotNull Runnable task, long delayTicks, long periodTicks) {
-        return entity.getScheduler().runAtFixedRate(plugin, scheduled -> task.run(), null,
-                Math.max(1L, delayTicks), Math.max(1L, periodTicks));
+    public static @Nullable ScheduledTask entityTimer(@NotNull Plugin plugin, @NotNull Entity entity, @NotNull Runnable task, long delayTicks, long periodTicks) {
+        return entity.getScheduler().runAtFixedRate(plugin, scheduled -> task.run(), null, Math.max(1L, delayTicks), Math.max(1L, periodTicks));
     }
 
     /**
@@ -145,8 +126,7 @@ public final class Schedulers {
      *
      * @return {@code false} when the entity was retired before the task could run
      */
-    public static boolean executeOnEntity(@NotNull Plugin plugin, @NotNull Entity entity,
-                                          @NotNull Runnable task) {
+    public static boolean executeOnEntity(@NotNull Plugin plugin, @NotNull Entity entity, @NotNull Runnable task) {
         return entity.getScheduler().execute(plugin, task, null, 1L);
     }
 
@@ -154,21 +134,15 @@ public final class Schedulers {
      * Runs {@code onMain} on the main thread when the future completes, logging
      * failures through the plugin logger.
      */
-    public static <T> void syncFromAsync(@NotNull Plugin plugin,
-                                         @NotNull CompletableFuture<T> future,
-                                         @NotNull Consumer<T> onMain) {
-        syncFromAsync(plugin, future, onMain, throwable ->
-                plugin.getLogger().log(Level.WARNING, "Async task failed", throwable));
+    public static <T> void syncFromAsync(@NotNull Plugin plugin, @NotNull CompletableFuture<T> future, @NotNull Consumer<T> onMain) {
+        syncFromAsync(plugin, future, onMain, throwable -> plugin.getLogger().log(Level.WARNING, "Async task failed", throwable));
     }
 
     /**
      * Runs {@code onMain} or {@code onError} on the main thread when the future
      * completes, so both callbacks may touch the world.
      */
-    public static <T> void syncFromAsync(@NotNull Plugin plugin,
-                                         @NotNull CompletableFuture<T> future,
-                                         @NotNull Consumer<T> onMain,
-                                         @NotNull Consumer<Throwable> onError) {
+    public static <T> void syncFromAsync(@NotNull Plugin plugin, @NotNull CompletableFuture<T> future, @NotNull Consumer<T> onMain, @NotNull Consumer<Throwable> onError) {
         future.whenComplete((value, throwable) -> {
             try {
                 if (throwable != null) {
@@ -178,8 +152,7 @@ public final class Schedulers {
 
                 sync(plugin, () -> onMain.accept(value));
             } catch (RuntimeException exception) {
-                plugin.getLogger().log(Level.WARNING,
-                        "Cannot schedule the async callback on the main thread", exception);
+                plugin.getLogger().log(Level.WARNING, "Cannot schedule the async callback on the main thread", exception);
             }
         });
     }
@@ -212,18 +185,14 @@ public final class Schedulers {
      * {@link #entity} and {@link #entityLater}.
      */
     public static void cancel(@Nullable ScheduledTask task) {
-        if (task != null) {
-            task.cancel();
-        }
+        if (task != null) task.cancel();
     }
 
     /**
      * Cancels every given task, ignoring {@code null} entries.
      */
     public static void cancelAll(@Nullable ScheduledTask... tasks) {
-        for (ScheduledTask task : tasks) {
-            cancel(task);
-        }
+        for (ScheduledTask task : tasks) cancel(task);
     }
 
     private static long toMillis(@NotNull Duration duration) {

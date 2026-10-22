@@ -60,9 +60,7 @@ public final class CommandService {
      * @param lang supplier re-read on every message, so a plugin reload that
      *             recreates the {@link LangLoader} is picked up automatically
      */
-    public CommandService(@NotNull Plugin plugin,
-                          @NotNull Supplier<LangLoader> lang,
-                          @NotNull CommandMessages messages) {
+    public CommandService(@NotNull Plugin plugin, @NotNull Supplier<LangLoader> lang, @NotNull CommandMessages messages) {
         this.plugin = plugin;
         this.lang = lang;
         this.messages = messages;
@@ -72,9 +70,7 @@ public final class CommandService {
      * @param lang fixed loader, use the {@link Supplier} constructor when the
      *             plugin can reload its language file
      */
-    public CommandService(@NotNull Plugin plugin,
-                          @NotNull LangLoader lang,
-                          @NotNull CommandMessages messages) {
+    public CommandService(@NotNull Plugin plugin, @NotNull LangLoader lang, @NotNull CommandMessages messages) {
         this(plugin, () -> lang, messages);
     }
 
@@ -161,25 +157,17 @@ public final class CommandService {
      * @return {@code true} when the sender has at least one of the permissions
      */
     public boolean hasAnyPermission(@NotNull CommandSender sender, @NotNull String... permissions) {
-        if (permissions.length == 0) {
-            return true;
-        }
+        if (permissions.length == 0) return true;
 
         boolean checked = false;
         for (String permission : permissions) {
-            if (permission.isBlank()) {
-                continue;
-            }
+            if (permission.isBlank()) continue;
 
             checked = true;
-            if (sender.hasPermission(permission)) {
-                return true;
-            }
+            if (sender.hasPermission(permission)) return true;
         }
 
-        if (!checked) {
-            return true;
-        }
+        if (!checked) return true;
 
         lang().send(sender, messages.noPermission());
         return false;
@@ -190,9 +178,7 @@ public final class CommandService {
      * {@code console-cant-do-command} message
      */
     public boolean playerOnly(@NotNull CommandSender sender) {
-        if (sender instanceof Player) {
-            return true;
-        }
+        if (sender instanceof Player) return true;
 
         lang().send(sender, messages.consoleCantDo());
         return false;
@@ -213,8 +199,7 @@ public final class CommandService {
     /**
      * Convenience for sending through the current loader.
      */
-    public void send(@NotNull CommandSender sender, @NotNull MessageKey key,
-                     TagResolver... resolvers) {
+    public void send(@NotNull CommandSender sender, @NotNull MessageKey key, TagResolver... resolvers) {
         lang().send(sender, key, resolvers);
     }
 }

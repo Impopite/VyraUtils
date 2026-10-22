@@ -22,8 +22,7 @@ import java.util.Locale;
  * <p>{@link #parse(String)} never throws: unparseable input becomes
  * {@link #UNKNOWN} (0.0.0), so a checker can never report a bogus update.</p>
  */
-public record SemanticVersion(int major, int minor, int patch, @NotNull List<String> preRelease)
-        implements Comparable<SemanticVersion> {
+public record SemanticVersion(int major, int minor, int patch, @NotNull List<String> preRelease) implements Comparable<SemanticVersion> {
 
     public static final SemanticVersion UNKNOWN = new SemanticVersion(0, 0, 0, List.of());
 
@@ -31,23 +30,18 @@ public record SemanticVersion(int major, int minor, int patch, @NotNull List<Str
         if (major < 0 || minor < 0 || patch < 0) {
             throw new IllegalArgumentException("Version parts cannot be negative");
         }
+
         preRelease = List.copyOf(preRelease);
     }
 
     public static @NotNull SemanticVersion parse(@Nullable String input) {
-        if (input == null || input.isBlank()) {
-            return UNKNOWN;
-        }
+        if (input == null || input.isBlank()) return UNKNOWN;
 
         String value = input.trim();
-        if (value.startsWith("v") || value.startsWith("V")) {
-            value = value.substring(1);
-        }
+        if (value.startsWith("v") || value.startsWith("V")) value = value.substring(1);
 
         int buildIndex = value.indexOf('+');
-        if (buildIndex >= 0) {
-            value = value.substring(0, buildIndex);
-        }
+        if (buildIndex >= 0) value = value.substring(0, buildIndex);
 
         String core = value;
         List<String> pre = List.of();
@@ -74,19 +68,13 @@ public record SemanticVersion(int major, int minor, int patch, @NotNull List<Str
     @Override
     public int compareTo(@NotNull SemanticVersion other) {
         int result = Integer.compare(major, other.major);
-        if (result != 0) {
-            return result;
-        }
+        if (result != 0) return result;
 
         result = Integer.compare(minor, other.minor);
-        if (result != 0) {
-            return result;
-        }
+        if (result != 0) return result;
 
         result = Integer.compare(patch, other.patch);
-        if (result != 0) {
-            return result;
-        }
+        if (result != 0) return result;
 
         return comparePreRelease(preRelease, other.preRelease);
     }
@@ -98,22 +86,14 @@ public record SemanticVersion(int major, int minor, int patch, @NotNull List<Str
     }
 
     private static int comparePreRelease(@NotNull List<String> left, @NotNull List<String> right) {
-        if (left.isEmpty() && right.isEmpty()) {
-            return 0;
-        }
-        if (left.isEmpty()) {
-            return 1;
-        }
-        if (right.isEmpty()) {
-            return -1;
-        }
+        if (left.isEmpty() && right.isEmpty()) return 0;
+        if (left.isEmpty()) return 1;
+        if (right.isEmpty()) return -1;
 
         int length = Math.min(left.size(), right.size());
         for (int index = 0; index < length; index++) {
             int result = compareIdentifier(left.get(index), right.get(index));
-            if (result != 0) {
-                return result;
-            }
+            if (result != 0) return result;
         }
 
         return Integer.compare(left.size(), right.size());
@@ -123,15 +103,9 @@ public record SemanticVersion(int major, int minor, int patch, @NotNull List<Str
         boolean leftNumeric = isNumeric(left);
         boolean rightNumeric = isNumeric(right);
 
-        if (leftNumeric && rightNumeric) {
-            return compareNumeric(left, right);
-        }
-        if (leftNumeric) {
-            return -1;
-        }
-        if (rightNumeric) {
-            return 1;
-        }
+        if (leftNumeric && rightNumeric) return compareNumeric(left, right);
+        if (leftNumeric) return -1;
+        if (rightNumeric) return 1;
 
         return left.toLowerCase(Locale.ROOT).compareTo(right.toLowerCase(Locale.ROOT));
     }
@@ -146,37 +120,27 @@ public record SemanticVersion(int major, int minor, int patch, @NotNull List<Str
 
     private static @NotNull String trimZeros(@NotNull String value) {
         int start = 0;
-        while (start < value.length() - 1 && value.charAt(start) == '0') {
-            start++;
-        }
+        while (start < value.length() - 1 && value.charAt(start) == '0') start++;
+
         return value.substring(start);
     }
 
     private static boolean isNumeric(@NotNull String value) {
-        if (value.isEmpty()) {
-            return false;
-        }
+        if (value.isEmpty()) return false;
         for (int index = 0; index < value.length(); index++) {
-            if (!Character.isDigit(value.charAt(index))) {
-                return false;
-            }
+            if (!Character.isDigit(value.charAt(index))) return false;
         }
+
         return true;
     }
 
     private static int number(@NotNull String[] parts, int index) {
-        if (index >= parts.length) {
-            return 0;
-        }
+        if (index >= parts.length) return 0;
 
         String part = parts[index].trim();
         int end = 0;
-        while (end < part.length() && Character.isDigit(part.charAt(end))) {
-            end++;
-        }
-        if (end == 0) {
-            return 0;
-        }
+        while (end < part.length() && Character.isDigit(part.charAt(end))) end++;
+        if (end == 0) return 0;
 
         try {
             return Integer.parseInt(part.substring(0, end));

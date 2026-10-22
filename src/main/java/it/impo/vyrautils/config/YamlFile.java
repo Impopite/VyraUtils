@@ -34,11 +34,7 @@ public final class YamlFile {
     private FileConfiguration config;
     private boolean broken;
 
-    private YamlFile(@NotNull Plugin plugin,
-                     @NotNull File file,
-                     @NotNull String path,
-                     @NotNull FileConfiguration config,
-                     boolean broken) {
+    private YamlFile(@NotNull Plugin plugin, @NotNull File file, @NotNull String path, @NotNull FileConfiguration config, boolean broken) {
         this.plugin = plugin;
         this.file = file;
         this.path = path;
@@ -73,13 +69,10 @@ public final class YamlFile {
      */
     public static boolean copyDefault(@NotNull Plugin plugin, @NotNull String path) {
         File file = new File(plugin.getDataFolder(), path);
-        if (file.exists()) {
-            return false;
-        }
+        if (file.exists()) return false;
 
         if (!hasBundledResource(plugin, path)) {
-            plugin.getLogger().warning("[Yaml] Resource '" + path
-                    + "' is not bundled in the plugin jar, skipping the default copy");
+            plugin.getLogger().warning("[Yaml] Resource '" + path + "' is not bundled in the plugin jar, skipping the default copy");
             return false;
         }
 
@@ -144,13 +137,10 @@ public final class YamlFile {
     public @NotNull ConfigurationSection section(@NotNull String path, boolean create) {
         ConfigurationSection section = config.getConfigurationSection(path);
 
-        if (section == null && create) {
-            section = config.createSection(path);
-        }
+        if (section == null && create) section = config.createSection(path);
 
         if (section == null) {
-            throw new IllegalArgumentException("Missing configuration section '" + path
-                    + "' in " + file.getName());
+            throw new IllegalArgumentException("Missing configuration section '" + path + "' in " + file.getName());
         }
 
         return section;
@@ -178,9 +168,7 @@ public final class YamlFile {
      * @return {@code true} when the file no longer exists
      */
     public boolean delete() {
-        if (file.exists() && !file.delete()) {
-            return false;
-        }
+        if (file.exists() && !file.delete()) return false;
 
         this.config = new YamlConfiguration();
         this.broken = false;
@@ -203,6 +191,7 @@ public final class YamlFile {
      */
     public static @Nullable YamlConfiguration readOnly(@NotNull File file) {
         YamlConfiguration parsed = new YamlConfiguration();
+
         try {
             parsed.load(file);
             return parsed;
@@ -223,9 +212,7 @@ public final class YamlFile {
      * Parses the file, keeping it untouched when it is malformed.
      */
     private static @NotNull Parsed parse(@NotNull Plugin plugin, @NotNull File file, @NotNull String path) {
-        if (!file.isFile()) {
-            return new Parsed(new YamlConfiguration(), false);
-        }
+        if (!file.isFile()) return new Parsed(new YamlConfiguration(), false);
 
         YamlConfiguration config = new YamlConfiguration();
         try {
