@@ -13,6 +13,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -23,6 +24,12 @@ import java.util.concurrent.ConcurrentHashMap;
  * plugin keeps working) or a raw dotted path, falls back to the given default and
  * logs a warning the first time a path is missing or has the wrong type. The warning
  * is logged once per path and reset on {@link #reload()}, to keep hot paths quiet.</p>
+ *
+ * <p>{@link #getComponent(String)} and {@link #getComponentList(String)} cache the
+ * parsed {@link Component}s, so repeated reads of the same path do not re-parse
+ * MiniMessage. The cache is invalidated by {@link #load()}, {@link #reload()},
+ * {@link #set(String, Object)}, {@link #addDefault(String, Object, String...)} and
+ * {@link #invalidate()}.</p>
  *
  * <p>{@link #load()}, {@link #reload()} and the setters must be called from the main
  * thread. After loading, the getters may be called from other threads: the cached
@@ -37,8 +44,16 @@ public final class ConfigLoader {
 
     private static final MiniMessage MINI_MESSAGE = MiniMessage.miniMessage();
 
+    /**
+     * Upper bound of the parsed component caches. A caller passing dynamic paths
+     * (for example one per player) would otherwise grow them without a limit.
+     */
+    private static final int MAX_CACHED_COMPONENTS = 512;
+
     private final Plugin plugin;
     private final Set<String> warned = ConcurrentHashMap.newKeySet();
+    private final Map<String, Component> componentCache = new ConcurrentHashMap<>();
+    private final Map<String, List<Component>> componentListCache = new ConcurrentHashMap<>();
 
     private volatile FileConfiguration config;
 
@@ -52,6 +67,7 @@ public final class ConfigLoader {
     public @NotNull ConfigLoader load() {
         plugin.saveDefaultConfig();
         this.config = plugin.getConfig();
+        invalidate();
         return this;
     }
 
@@ -63,6 +79,17 @@ public final class ConfigLoader {
         plugin.reloadConfig();
         this.warned.clear();
         this.config = plugin.getConfig();
+        invalidate();
+    }
+
+    /**
+     * Clears the parsed component caches. Call it after mutating the configuration
+     * directly through {@link #raw()}: the getters of this class invalidate the caches
+     * themselves, a direct mutation cannot be detected.
+     */
+    public void invalidate() {
+        componentCache.clear();
+        componentListCache.clear();
     }
 
     /**
@@ -214,6 +241,9 @@ public final class ConfigLoader {
     /**
      * Parses a MiniMessage string from the config.
      *
+     * <p>The result is cached until {@link #reload()}, {@link #set(String, Object)},
+     * {@link #addDefault(String, Object, String...)} or {@link #invalidate()} is called.</p>
+     *
      * @return an empty component when the path is missing or blank
      */
     public @NotNull Component getComponent(@NotNull ConfigPath key) {
@@ -223,15 +253,27 @@ public final class ConfigLoader {
     /**
      * Parses a MiniMessage string from the config.
      *
+     * <p>The result is cached until {@link #reload()}, {@link #set(String, Object)},
+     * {@link #addDefault(String, Object, String...)} or {@link #invalidate()} is called.</p>
+     *
      * @return an empty component when the path is missing or blank
      */
     public @NotNull Component getComponent(@NotNull String path) {
+        Component cached = componentCache.get(path);
+        if (cached != null) return cached;
+
         String raw = raw().getString(path, "");
-        return raw.isEmpty() ? Component.empty() : MINI_MESSAGE.deserialize(raw);
+        Component component = raw.isEmpty() ? Component.empty() : MINI_MESSAGE.deserialize(raw);
+
+        cache(componentCache, path, component);
+        return component;
     }
 
     /**
      * Parses every entry of a string list as MiniMessage.
+     *
+     * <p>The result is cached until {@link #reload()}, {@link #set(String, Object)},
+     * {@link #addDefault(String, Object, String...)} or {@link #invalidate()} is called.</p>
      */
     public @NotNull List<Component> getComponentList(@NotNull ConfigPath key) {
         return getComponentList(key.getPath());
@@ -239,17 +281,29 @@ public final class ConfigLoader {
 
     /**
      * Parses every entry of a string list as MiniMessage.
+     *
+     * <p>The result is cached until {@link #reload()}, {@link #set(String, Object)},
+     * {@link #addDefault(String, Object, String...)} or {@link #invalidate()} is called.</p>
      */
     public @NotNull List<Component> getComponentList(@NotNull String path) {
-        List<String> raw = getStringList(path);
-        if (raw.isEmpty()) return List.of();
+        List<Component> cached = componentListCache.get(path);
+        if (cached != null) return cached;
 
-        List<Component> components = new ArrayList<>(raw.size());
-        for (String line : raw) {
-            components.add(line.isEmpty() ? Component.empty() : MINI_MESSAGE.deserialize(line));
+        List<String> raw = getStringList(path);
+        List<Component> parsed;
+        if (raw.isEmpty()) {
+            parsed = List.of();
+        } else {
+            List<Component> lines = new ArrayList<>(raw.size());
+            for (String line : raw) {
+                lines.add(line.isEmpty() ? Component.empty() : MINI_MESSAGE.deserialize(line));
+            }
+
+            parsed = List.copyOf(lines);
         }
 
-        return List.copyOf(components);
+        cache(componentListCache, path, parsed);
+        return parsed;
     }
 
     /**
@@ -288,6 +342,7 @@ public final class ConfigLoader {
 
     public void set(@NotNull String path, @Nullable Object value) {
         raw().set(path, value);
+        invalidate();
     }
 
     public void setComments(@NotNull ConfigPath key, @NotNull List<String> comments) {
@@ -324,6 +379,7 @@ public final class ConfigLoader {
 
         raw().set(path, value);
         if (comments.length > 0) raw().setComments(path, List.of(comments));
+        invalidate();
 
         return true;
     }
@@ -339,6 +395,12 @@ public final class ConfigLoader {
         }
 
         return def;
+    }
+
+    private static <T> void cache(@NotNull Map<String, T> cache, @NotNull String path, @NotNull T value) {
+        if (cache.size() >= MAX_CACHED_COMPONENTS) cache.clear();
+
+        cache.put(path, value);
     }
 
     private static @NotNull String describe(@Nullable Object value) {

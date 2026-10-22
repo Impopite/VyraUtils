@@ -37,6 +37,9 @@ import java.util.Set;
  * again at every call: for hot paths such as scoreboards or timers, cache the
  * resulting {@link Component} on the caller side.</p>
  *
+ * <p>The raw text is cached too: {@link #raw(MessageKey)} reads the map built at load
+ * time, so it never touches the YAML file.</p>
+ *
  * <p>The loader is immutable: on reload create a new instance and stop holding
  * a reference to the old one.</p>
  */
@@ -53,6 +56,7 @@ public final class LangLoader {
 
     private final Map<MessageKey, Component> plain;
     private final Map<MessageKey, Component> prefixed;
+    private final Map<MessageKey, String> rawValues;
     private final Set<MessageKey> missingKeys;
     private final Set<MessageKey> staticKeys;
 
@@ -67,15 +71,22 @@ public final class LangLoader {
                 : parseSafely(prefixKey, config.getString(prefixKey.getPath(), ""), plugin, blankKeys);
 
         Map<MessageKey, Component> plainMessages = new LinkedHashMap<>();
+        Map<MessageKey, String> rawMessages = new LinkedHashMap<>();
         Set<MessageKey> noTagKeys = new LinkedHashSet<>(keys.size());
 
         for (MessageKey key : keys) {
             String raw = config.getString(key.getPath(), "");
+            rawMessages.put(key, raw);
             plainMessages.put(key, parseSafely(key, raw, plugin, blankKeys));
 
             if (raw.indexOf('<') < 0) noTagKeys.add(key);
         }
 
+        if (prefixKey != null && !rawMessages.containsKey(prefixKey)) {
+            rawMessages.put(prefixKey, config.getString(prefixKey.getPath(), ""));
+        }
+
+        this.rawValues = Map.copyOf(rawMessages);
         this.plain = Collections.unmodifiableMap(plainMessages);
         this.missingKeys = Collections.unmodifiableSet(blankKeys);
         this.staticKeys = Set.copyOf(noTagKeys);
@@ -223,10 +234,12 @@ public final class LangLoader {
     }
 
     /**
-     * Returns the raw, unparsed value of a key.
+     * Returns the raw, unparsed value of a key, read from the cache when the key
+     * was part of the loaded set.
      */
     public @NotNull String raw(@NotNull MessageKey key) {
-        return config.getString(key.getPath(), "");
+        String cached = rawValues.get(key);
+        return cached != null ? cached : config.getString(key.getPath(), "");
     }
 
     /**
@@ -298,7 +311,12 @@ public final class LangLoader {
 
     private @NotNull TagResolver combine(@NotNull TagResolver... resolvers) {
         TagResolver built = palette;
-        if (built == null) return resolvers.length == 0 ? TagResolver.empty() : TagResolver.resolver(resolvers);
+        if (built == null) {
+            if (resolvers.length == 0) return TagResolver.empty();
+
+            return resolvers.length == 1 ? resolvers[0] : TagResolver.resolver(resolvers);
+        }
+
         if (resolvers.length == 0) return built;
 
         TagResolver[] all = new TagResolver[resolvers.length + 1];
