@@ -42,7 +42,7 @@ dependencies {
     // CommandAPI is part of the public API (CommandService, CommandInvocation),
     // so it is exposed to consumers using a project/composite dependency too.
     api 'dev.jorel:commandapi-paper-shade:12.1.0'
-    implementation 'com.mysql:mysql-connector-j:26.7.0'
+    implementation 'com.mysql:mysql-connector-j:26.10.0'
     implementation 'com.zaxxer:HikariCP:7.1.0'
 }
 
