@@ -35,7 +35,7 @@ dependencies {
     // Used by ModrinthUpdateChecker: declared explicitly instead of relying on the
     // transitive dependency of paper-api. The Paper server ships Gson at runtime
     // (it is a dependency of adventure-text-serializer-gson), so it is not shaded.
-    compileOnly 'com.google.code.gson:gson:2.11.0'
+    compileOnly 'com.google.code.gson:gson:2.15.0'
 
     // Everything below is shaded inside VyraUtils.
     // Consumer plugins DO NOT need to declare or install these.
